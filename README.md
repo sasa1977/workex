@@ -13,10 +13,10 @@ Another feature is the option to control how the messages are accumulated, which
 This is the simplest usage form, where you start a server which is a wrapper around multiple workers. A worker is a function running in its own process and consuming messages. A message can be any erlang term.
 
 General rules:
-1. If the receiving worker is idle, it will immediately get the message.
-2. While the worker is busy, all incoming messages are accumulated. As soon as it becomes idle, it will receive all the new messages.
-3. Messages are sent as lists, in the order received by the server process.
-4. Message sending is a cast (async) operation.
+  1. If the receiving worker is idle, it will immediately get the message.
+  2. While the worker is busy, all incoming messages are accumulated. As soon as it becomes idle, it will receive all the new messages.
+  3. Messages are sent as lists, in the order received by the server process.
+  4. Message sending is a cast (async) operation.
 
 Example:
 

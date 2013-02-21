@@ -3,9 +3,10 @@ Code.require_file "../test_helper.exs", __FILE__
 defmodule WorkexTest do
   use ExUnit.Case
   
-  def setup do
+  setup do
     flush_messages
     seed_random
+    :ok
   end
 
   defp flush_messages(acc // []) do

@@ -57,7 +57,7 @@ Each worker maintains its own state. The initial state is provided in the worker
     
 ## Message manipulation
 
-By default the worker receives messages as the chronologically sorted list (older messages come first). Two alternative implementations are provided.
+By default the worker receives messages as the chronologically sorted list (older messages come first). Three alternative implementations are provided.
 
 ### Stack
 
@@ -87,6 +87,22 @@ Unique assumes that messages are tuples and that the first element of the tuple 
     Workex.Server.push(workex_pid, :my_worker, {:msg3, :d})
     
 The worker will receive `[{:msg1, :a}]` and then `[{:msg3, :d}, {:msg2, :c}]`
+
+### Priority
+
+Priority assumes that messages are tuples, and that the first element of the tuple is a number representing message priority. The accumulated messages are sorted by desending priority. If two messages have the same priority, they are sorted by the order received:
+
+    {:ok, workex_pid} = Workex.Server.start_link([workers: [
+      [id: :my_worker, behaviour: Workex.Behaviour.Priority, job: fn(message, _) -> ... end]
+    ]])
+
+    Workex.Server.push(server, :my_worker, {1, :a})
+    Workex.Server.push(server, :my_worker, {1, :b})
+    Workex.Server.push(server, :my_worker, {2, :c})
+    Workex.Server.push(server, :my_worker, {1, :d})
+    Workex.Server.push(server, :my_worker, {3, :e})
+
+The worker will receive `[{1, :a}]` and then `[{3, :e}, {2, :c}, {1, :b}, {1, :d}]`
 
 ### Custom
 

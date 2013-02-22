@@ -47,4 +47,13 @@ defmodule Workex.Behaviour do
     def transform(messages), do: Dict.values(messages)
     def empty?(messages), do: Dict.size(messages) == 0
   end
+
+  defmodule Priority do
+    use Workex.Behaviour.Base
+
+    def init, do: Workex.Priority.new
+    def add(priority, message), do: priority.add(elem(message, 0), message)
+    def transform(priority), do: priority.to_list
+    def empty?(priority), do: priority.empty?
+  end
 end

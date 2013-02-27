@@ -54,7 +54,19 @@ Each worker maintains its own state. The initial state is provided in the worker
     {:ok, workex_pid} = Workex.Server.start_link([workers: [
       [id: :my_worker, state: 0, job: fn(_, cnt) -> cnt + 1 end]
     ]])
-    
+
+## Throttling
+
+If desired, you can throttle the worker so it does not processes messages too often:
+
+    Workex.Server.start_link([workers: [
+      [id: :my_worker, throttle: 1000, ...]
+    ]])
+
+The call above ensures that the worker will not be invoked more often than every 1000 ms.
+
+The throttling time incorporates the execution time of the worker. If the worker performs its task in less than 1000 ms, a sleep in its process will be invoked, assuring that it waits for the remaining time. However, if the processing time is larger, no sleep will take place, and if new messages are available, they will be processed immediately. If you want to ensure that worker waits for some fixed amount of time after it has done processing, add a _:timer.sleep_ call in the worker function.
+
 ## Message manipulation
 
 By default the worker receives messages as the chronologically sorted list (older messages come first). Three alternative implementations are provided.

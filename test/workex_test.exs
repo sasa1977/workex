@@ -179,6 +179,26 @@ defmodule WorkexTest do
     assert priority.to_list == [:four, :two, :one, :three]
   end
 
+  defmacrop between(x, y, z) do
+    quote do
+      a = unquote(x)
+      a > unquote(y) && a < unquote(z)
+    end
+  end
+
+  test "throttler" do
+    assert between(exec_throttle( 0),  40,  60)
+    assert between(exec_throttle( 30), 40,  60)
+    assert between(exec_throttle(100), 90, 110)
+  end
+
+  defp exec_throttle(sleep_time) do
+    Workex.Throttler.exec_and_measure(fn() ->
+      Workex.Throttler.throttle(50, fn() -> :timer.sleep(sleep_time) end)
+    end) |> 
+    elem(0)
+  end
+
   defp seed_random do
     {a1,a2,a3} = :erlang.now
     :random.seed(a1,a2,a3)
@@ -200,7 +220,7 @@ defmodule WorkexTest do
   end
 
   defp delay_worker(worker_id, args // []) do
-    [id: worker_id, job: fn(msg, pid) -> :timer.sleep(30); pid <- msg; pid end, state: self] ++ args
+    [id: worker_id, job: fn(msg, pid) -> pid <- msg; pid end, state: self, throttle: 30] ++ args
   end
   
   defp rcv do

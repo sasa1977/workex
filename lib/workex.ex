@@ -25,25 +25,25 @@ defrecord Workex, [:supervisor, {:workers, HashDict.new}] do
     pid
   end
   
-  def add_worker(worker_args, this(supervisor)) do
+  def add_worker(worker_args, this([supervisor])) do
     store_worker(Workex.Worker.Queue.new([{:supervisor, supervisor} | worker_args]), this)
   end
   
-  defp store_worker(worker, this(workers)) do
+  defp store_worker(worker, this([workers])) do
     this.workers(Dict.put(workers, worker.id, worker))
   end
   
-  def push(worker_id, message, this(workers)) do
+  def push(worker_id, message, this([workers])) do
     workers[worker_id].push(message) |>
     store_worker(this)
   end
   
-  def handle_message({:worker_available, worker_id}, this(workers)) do
+  def handle_message({:worker_available, worker_id}, this([workers])) do
     workers[worker_id].worker_available(true) |>
     store_worker(this)
   end
 
-  def handle_message({:worker_created, worker_id, worker_pid}, this(workers)) do
+  def handle_message({:worker_created, worker_id, worker_pid}, this([workers])) do
     workers[worker_id].worker_pid(worker_pid).worker_available(true) |>
     store_worker(this)
   end

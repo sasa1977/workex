@@ -28,7 +28,7 @@ defrecord Workex.Worker.Queue,
     end)
   end
   
-  defp start_worker(this(id), worker_args) do
+  defp start_worker(this([id]), worker_args) do
     worker_args = [id: id, queue_pid: self] ++ worker_args
 
     {:ok, worker_pid} = case worker_args[:supervisor] do
@@ -38,7 +38,7 @@ defrecord Workex.Worker.Queue,
     this.worker_pid(worker_pid)
   end
   
-  defp maybe_notify_worker(this({:worker_available, true}, worker_pid)) do
+  defp maybe_notify_worker(this([{:worker_available, true}, worker_pid])) do
     unless empty?(this) do
       Workex.Worker.process(worker_pid, transform_messages(this))
       worker_available(false, this) |>
@@ -51,28 +51,28 @@ defrecord Workex.Worker.Queue,
   defp maybe_notify_worker(this), do: this
   
   defoverridable [worker_available: 2]
-  def worker_available(value, this()) do
+  def worker_available(value, this([])) do
     this = super(value, this)
     maybe_notify_worker(this)
   end
   
-  def push(message, this(behaviour, messages)) do
+  def push(message, this([behaviour, messages])) do
     behaviour.add(messages, message) |>
     messages(this) |>
     maybe_notify_worker
   end
   
-  defp init_messages(this(behaviour)), do: this.messages(behaviour.init)
-  defp clear_messages(this(messages, behaviour)) do
+  defp init_messages(this([behaviour])), do: this.messages(behaviour.init)
+  defp clear_messages(this([messages, behaviour])) do
     behaviour.clear(messages) |>
     messages(this)
   end
   
-  defp transform_messages(fields(behaviour, messages)) do
+  defp transform_messages(fields([behaviour, messages])) do
     behaviour.transform(messages)
   end
 
-  defp empty?(fields(behaviour, messages)) do
+  defp empty?(fields([behaviour, messages])) do
     behaviour.empty?(messages)
   end
 end

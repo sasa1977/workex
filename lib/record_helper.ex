@@ -1,39 +1,11 @@
-defmodule Workex.RecordHelper.DynGenerator do
-  defmacro __using__(_) do
-    generate_macros(function(:def_fields, 1)) ++
-    generate_macros(function(:def_this, 1)) ++
-    [def_this([])]
-  end
-
-  defp generate_macros(generator) do
-    Enum.map(1..20, fn(i) ->
-      generator.(args(i))
-    end)
-  end
-
-  defp def_fields(args) do
-    quote do 
-      defmacro fields(unquote_splicing(args)) do
-        define_fields([unquote_splicing(args)])
-      end
-    end
-  end
-
-  defp def_this(args) do
-    quote do 
-      defmacro this(unquote_splicing(args)) do
-        define_this([unquote_splicing(args)])
-      end
-    end
-  end
-
-  defp args(n) do
-    Enum.map(1..n, fn(i) -> {binary_to_atom("arg#{i}"), [], nil} end)
-  end
-end
-
 defmodule Workex.RecordHelper do
-  use Workex.RecordHelper.DynGenerator
+  defmacro fields(args) do
+    define_fields(args)
+  end
+  
+  defmacro this(args) do
+    define_this(args)
+  end
   
   defp define_this(args) do
     quote do

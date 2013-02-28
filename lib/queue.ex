@@ -28,7 +28,7 @@ defrecord Workex.Worker.Queue,
     end)
   end
   
-  defp start_worker(worker_args, fields(id) = this) do
+  defp start_worker(worker_args, this(id)) do
     worker_args = [id: id, queue_pid: self] ++ worker_args
 
     {:ok, worker_pid} = case worker_args[:supervisor] do

@@ -68,7 +68,7 @@ defrecord Workex.Worker.Queue,
     messages(this)
   end
   
-  defp transform_messages(fields([behaviour, messages])) do
+  defp transform_messages(fields(behaviour, messages)) do
     behaviour.transform(messages)
   end
 

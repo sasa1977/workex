@@ -33,10 +33,6 @@ defmodule Workex.RecordHelper.DynGenerator do
 end
 
 defmodule Workex.RecordHelper do
-  defmacro fields(args) when is_list(args) do
-    define_fields(args)
-  end
-
   use Workex.RecordHelper.DynGenerator
   
   defp define_this(args) do

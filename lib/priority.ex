@@ -1,27 +1,18 @@
 defrecord Workex.Priority, [elements: HashDict.new] do
-  def empty?(this), do: (Dict.size(this.elements) == 0)
+  import Workex.RecordHelper
 
-  def add(priority, element, this) when is_number(priority) do
-    this.
-      add_element(priority, element)
+  def empty?(fields(elements)), do: (Dict.size(elements) == 0)
+
+  def add(priority, element, this(elements)) when is_number(priority) do
+    (elements[priority] || []) |>
+    [element | &1].() |>
+    Dict.put(elements, priority, &1).() |>
+    elements(this)
   end
 
-  def to_list(this) do
-    List.foldl(Enum.sort(this.elements.keys), [], fn(priority, acc) ->
-      this.add_priorities(priority, acc)
-    end)
-  end
-
-  def add_priorities(priority, acc, this) do
-    List.foldl(this.elements[priority], acc, fn(element, acc) ->
-      [element | acc]
-    end)
-  end
-
-  def add_element(priority, element, this) do
-    this.update_elements(fn(elements) ->
-      new_array = [element | (this.elements[priority] || [])]
-      Dict.put(elements, priority, new_array)
+  def to_list(fields(elements)) do
+    List.foldl(Enum.sort(elements.keys), [], fn(priority, acc) ->
+      List.foldl(elements[priority], acc, [&1 | &2])
     end)
   end
 end

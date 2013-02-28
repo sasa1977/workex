@@ -2,12 +2,14 @@ defrecord Workex.Worker.Queue,
   [
     :id, :worker_pid, :messages, {:behaviour, Workex.Behaviour.Queue}, {:worker_available, true}
   ] do
+
+  import Workex.RecordHelper
     
   defoverridable [new: 1]
   def new(data) do
-    super(worker_args(data)).
-      init_messages.
-      start_worker(job_args(data))
+    super(worker_args(data)) |>
+    init_messages |>
+    start_worker(job_args(data), &1).()
   end
   
   defp worker_args(data) do
@@ -26,8 +28,8 @@ defrecord Workex.Worker.Queue,
     end)
   end
   
-  def start_worker(worker_args, this) do
-    worker_args = [id: this.id, queue_pid: self] ++ worker_args
+  defp start_worker(worker_args, fields(id) = this) do
+    worker_args = [id: id, queue_pid: self] ++ worker_args
 
     {:ok, worker_pid} = case worker_args[:supervisor] do
       nil -> Workex.Worker.start_link(worker_args)
@@ -36,38 +38,41 @@ defrecord Workex.Worker.Queue,
     this.worker_pid(worker_pid)
   end
   
-  def notify_worker(Workex.Worker.Queue[worker_available: true] = this) do
-    unless this.empty? do
-      this.worker_pid <- {:workex, :new_data, this.transform_messages}
-      this.worker_available(false).clear_messages
+  defp maybe_notify_worker(this({:worker_available, true}, worker_pid)) do
+    unless empty?(this) do
+      worker_pid <- {:workex, :new_data, transform_messages(this)}
+      worker_available(false, this) |>
+      clear_messages
     else
       this
     end
   end
   
-  def notify_worker(this), do: this
+  defp maybe_notify_worker(this), do: this
   
   defoverridable [worker_available: 2]
-  def worker_available(value, this) do
+  def worker_available(value, this()) do
     this = super(value, this)
-    if this.worker_available do
-      this.notify_worker
-    else
-      this
-    end
+    maybe_notify_worker(this)
   end
   
-  def push(message, this) do
-    this.
-      update_messages(this.behaviour.add(&1, message)).
-      notify_worker
+  def push(message, this(behaviour, messages)) do
+    behaviour.add(messages, message) |>
+    messages(this) |>
+    maybe_notify_worker
   end
   
-  def clear_messages(this), do: this.update_messages(fn(messages) -> this.behaviour.clear(messages) end)
-  def init_messages(this), do: this.messages(this.behaviour.init)
+  defp init_messages(this(behaviour)), do: this.messages(behaviour.init)
+  defp clear_messages(this(messages, behaviour)) do
+    behaviour.clear(messages) |>
+    messages(this)
+  end
   
-  defoverridable [messages: 1]
-  def transform_messages(this), do: this.behaviour.transform(this.messages)
+  defp transform_messages(fields([behaviour, messages])) do
+    behaviour.transform(messages)
+  end
 
-  def empty?(this), do: this.behaviour.empty?(this.messages)
+  defp empty?(fields(behaviour, messages)) do
+    behaviour.empty?(messages)
+  end
 end

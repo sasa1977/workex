@@ -11,9 +11,9 @@ defmodule Workex.Server do
   end
   
   defcast push(worker_id, message), state: workex do
-    new_state(workex.push(worker_id, message))
+    new_state(Workex.push(worker_id, message, workex))
   end
   
-  def handle_info({:workex, msg}, workex), do: new_state(workex.handle_message(msg))
+  def handle_info({:workex, msg}, workex), do: new_state(Workex.handle_message(msg, workex))
   def handle_info(_, workex), do: new_state(workex)
 end

@@ -187,9 +187,9 @@ defmodule WorkexTest do
   end
 
   test "throttler" do
-    assert between(exec_throttle( 0),  40,  60)
-    assert between(exec_throttle( 30), 40,  60)
-    assert between(exec_throttle(100), 90, 110)
+    assert between(exec_throttle( 0),  30,  70)
+    assert between(exec_throttle( 30), 30,  70)
+    assert between(exec_throttle(100), 80, 120)
   end
 
   defp exec_throttle(sleep_time) do

@@ -52,8 +52,8 @@ defmodule Workex.Behaviour do
     use Workex.Behaviour.Base
 
     def init, do: Workex.Priority.new
-    def add(priority, message), do: priority.add(elem(message, 0), message)
-    def transform(priority), do: priority.to_list
-    def empty?(priority), do: priority.empty?
+    def add(priority, message), do: Workex.Priority.add(elem(message, 0), message, priority)
+    def transform(priority), do: Workex.Priority.to_list(priority)
+    def empty?(priority), do: Workex.Priority.empty?(priority)
   end
 end

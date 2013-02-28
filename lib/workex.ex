@@ -4,6 +4,8 @@ defrecord Workex, [:supervisor, {:workers, HashDict.new}] do
     See readme for detailed description
   """
 
+  import Workex.RecordHelper
+
   defoverridable [new: 1]
   def new(spec) do
     spec = Keyword.put(spec, :supervisor, init_supervisor(spec[:supervisor]))
@@ -23,26 +25,26 @@ defrecord Workex, [:supervisor, {:workers, HashDict.new}] do
     pid
   end
   
-  def add_worker(worker_args, this) do
-    this.store_worker(Workex.Worker.Queue.new([{:supervisor, this.supervisor} | worker_args]))
+  def add_worker(worker_args, this(supervisor)) do
+    store_worker(Workex.Worker.Queue.new([{:supervisor, supervisor} | worker_args]), this)
   end
   
-  def store_worker(worker, this) do
-    this.update_workers(fn(workers) -> Dict.put(workers, worker.id, worker) end)
+  defp store_worker(worker, this(workers)) do
+    this.workers(Dict.put(workers, worker.id, worker))
   end
   
-  def push(worker_id, message, this) do
-    this.workers[worker_id].push(message) |>
-    this.store_worker
+  def push(worker_id, message, this(workers)) do
+    workers[worker_id].push(message) |>
+    store_worker(this)
   end
   
-  def handle_message({:worker_available, worker_id}, this) do
-    this.workers[worker_id].worker_available(true) |>
-    this.store_worker
+  def handle_message({:worker_available, worker_id}, this(workers)) do
+    workers[worker_id].worker_available(true) |>
+    store_worker(this)
   end
 
-  def handle_message({:worker_created, worker_id, worker_pid}, this) do
-    this.workers[worker_id].worker_pid(worker_pid).worker_available(true) |>
-    this.store_worker
+  def handle_message({:worker_created, worker_id, worker_pid}, this(workers)) do
+    workers[worker_id].worker_pid(worker_pid).worker_available(true) |>
+    store_worker(this)
   end
 end

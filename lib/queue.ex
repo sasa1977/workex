@@ -9,7 +9,7 @@ defrecord Workex.Worker.Queue,
   def new(data) do
     super(worker_args(data)) |>
     init_messages |>
-    start_worker(job_args(data), &1).()
+    start_worker(job_args(data))
   end
   
   defp worker_args(data) do
@@ -28,7 +28,7 @@ defrecord Workex.Worker.Queue,
     end)
   end
   
-  defp start_worker(worker_args, this(id)) do
+  defp start_worker(this(id), worker_args) do
     worker_args = [id: id, queue_pid: self] ++ worker_args
 
     {:ok, worker_pid} = case worker_args[:supervisor] do

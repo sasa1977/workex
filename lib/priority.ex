@@ -4,9 +4,7 @@ defrecord Workex.Priority, [elements: HashDict.new] do
   def empty?(fields(elements)), do: (Dict.size(elements) == 0)
 
   def add(priority, element, this(elements)) when is_number(priority) do
-    (elements[priority] || []) |>
-    [element | &1].() |>
-    Dict.put(elements, priority, &1).() |>
+    Dict.put(elements, priority, [element | (elements[priority] || [])]) |>
     elements(this)
   end
 

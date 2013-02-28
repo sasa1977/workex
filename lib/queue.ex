@@ -40,7 +40,7 @@ defrecord Workex.Worker.Queue,
   
   defp maybe_notify_worker(this({:worker_available, true}, worker_pid)) do
     unless empty?(this) do
-      worker_pid <- {:workex, :new_data, transform_messages(this)}
+      Workex.Worker.process(worker_pid, transform_messages(this))
       worker_available(false, this) |>
       clear_messages
     else

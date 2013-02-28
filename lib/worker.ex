@@ -25,9 +25,7 @@ defmodule Workex.Worker do
     initial_state(State.new(args))
   end
   
-  def handle_info({:workex, :new_data, messages}, state) do
+  defcast process(messages), state: state do
     new_state(state.exec_job(messages))
   end
-  
-  def handle_info(_, state), do: new_state(state)
 end

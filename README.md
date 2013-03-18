@@ -20,13 +20,15 @@ General rules:
 
 Example:
 
-    {:ok, workex_pid} = Workex.Server.start_link([workers: [
-      [id: :my_worker, job: fn(message, _) -> ... end]
-    ]])
-  
-    Workex.Server.push(workex_pid, :my_worker, :msg1)
-    Workex.Server.push(workex_pid, :my_worker, :msg2)
-    Workex.Server.push(workex_pid, :my_worker, :msg3)
+```elixir
+{:ok, workex_pid} = Workex.Server.start_link([workers: [
+  [id: :my_worker, job: fn(message, _) -> ... end]
+]])
+
+Workex.Server.push(workex_pid, :my_worker, :msg1)
+Workex.Server.push(workex_pid, :my_worker, :msg2)
+Workex.Server.push(workex_pid, :my_worker, :msg3)
+```
     
 Here, the worker will receive two messages with values `[:msg1]` and then `[:msg2, :msg3]`.
 
@@ -36,11 +38,13 @@ Both the workex server process and the worker processes are implemented as gen_s
 
 It is possible to use a _simple\_one\_for\_one_ supervisor to start and supervise workers:
 
-    # using workex supervisor
-    {:ok, server} = Workex.Server.start([supervisor: [restart: :permanent, shutdown: 5000], workers: [...]])
-    
-    # using your own simple_one_for_one
-    {:ok, server} = Workex.Server.start([supervisor: pid, workers: [...]])
+```elixir
+# using workex supervisor
+{:ok, server} = Workex.Server.start([supervisor: [restart: :permanent, shutdown: 5000], workers: [...]])
+
+# using your own simple_one_for_one
+{:ok, server} = Workex.Server.start([supervisor: pid, workers: [...]])
+```
     
 In the first approach, the workex creates (and links) its own supervisor with the arguments provided. In the second version, you provide a pid of the already created _simple\_one\_for\_one_ supervisor.  
 When supervisor is used, worker processes are not linked to the workex server.
@@ -51,17 +55,21 @@ Notice that the workex server is not included in the supervision tree: it is up 
 
 Each worker maintains its own state. The initial state is provided in the worker spec. The current state is received as the second argument of the job function while the function's return value is used as the new state:
 
-    {:ok, workex_pid} = Workex.Server.start_link([workers: [
-      [id: :my_worker, state: 0, job: fn(_, cnt) -> cnt + 1 end]
-    ]])
+```elixir
+{:ok, workex_pid} = Workex.Server.start_link([workers: [
+  [id: :my_worker, state: 0, job: fn(_, cnt) -> cnt + 1 end]
+]])
+```
 
 ## Throttling
 
 If desired, you can throttle the worker so it does not processes messages too often:
 
-    Workex.Server.start_link([workers: [
-      [id: :my_worker, throttle: 1000, ...]
-    ]])
+```elixir
+Workex.Server.start_link([workers: [
+  [id: :my_worker, throttle: 1000, ...]
+]])
+```
 
 The call above ensures that the worker will not be invoked more often than every 1000 ms.
 
@@ -75,13 +83,15 @@ By default the worker receives messages as the chronologically sorted list (olde
 
 Accumulates messages in the list, newer messages come first:
 
-    {:ok, workex_pid} = Workex.Server.start_link([workers: [
-      [id: :my_worker, behaviour: Workex.Behaviour.Stack, job: fn(message, _) -> ... end]
-    ]])
-  
-    Workex.Server.push(workex_pid, :my_worker, :msg1)
-    Workex.Server.push(workex_pid, :my_worker, :msg2)
-    Workex.Server.push(workex_pid, :my_worker, :msg3)
+```elixir
+{:ok, workex_pid} = Workex.Server.start_link([workers: [
+  [id: :my_worker, behaviour: Workex.Behaviour.Stack, job: fn(message, _) -> ... end]
+]])
+
+Workex.Server.push(workex_pid, :my_worker, :msg1)
+Workex.Server.push(workex_pid, :my_worker, :msg2)
+Workex.Server.push(workex_pid, :my_worker, :msg3)
+```
     
 The worker will receive `[:msg1]` and then `[:msg3 ,:msg2]`.
 
@@ -89,14 +99,16 @@ The worker will receive `[:msg1]` and then `[:msg3 ,:msg2]`.
 
 Unique assumes that messages are tuples and that the first element of the tuple is the message id. When accumulating messages, the new message overwrites the accumulated older one with the same id. The ordering is not preserved.
 
-    {:ok, workex_pid} = Workex.Server.start_link([workers: [
-      [id: :my_worker, behaviour: Workex.Behaviour.Unique, job: fn(message, _) -> ... end]
-    ]])
-  
-    Workex.Server.push(workex_pid, :my_worker, {:msg1, :a})
-    Workex.Server.push(workex_pid, :my_worker, {:msg2, :b})
-    Workex.Server.push(workex_pid, :my_worker, {:msg2, :c})
-    Workex.Server.push(workex_pid, :my_worker, {:msg3, :d})
+```elixir
+{:ok, workex_pid} = Workex.Server.start_link([workers: [
+  [id: :my_worker, behaviour: Workex.Behaviour.Unique, job: fn(message, _) -> ... end]
+]])
+
+Workex.Server.push(workex_pid, :my_worker, {:msg1, :a})
+Workex.Server.push(workex_pid, :my_worker, {:msg2, :b})
+Workex.Server.push(workex_pid, :my_worker, {:msg2, :c})
+Workex.Server.push(workex_pid, :my_worker, {:msg3, :d})
+```
     
 The worker will receive `[{:msg1, :a}]` and then `[{:msg3, :d}, {:msg2, :c}]`
 
@@ -104,15 +116,17 @@ The worker will receive `[{:msg1, :a}]` and then `[{:msg3, :d}, {:msg2, :c}]`
 
 Priority assumes that messages are tuples, and that the first element of the tuple is a number representing message priority. The accumulated messages are sorted by desending priority. If two messages have the same priority, they are sorted by the order received:
 
-    {:ok, workex_pid} = Workex.Server.start_link([workers: [
-      [id: :my_worker, behaviour: Workex.Behaviour.Priority, job: fn(message, _) -> ... end]
-    ]])
+```elixir
+{:ok, workex_pid} = Workex.Server.start_link([workers: [
+  [id: :my_worker, behaviour: Workex.Behaviour.Priority, job: fn(message, _) -> ... end]
+]])
 
-    Workex.Server.push(server, :my_worker, {1, :a})
-    Workex.Server.push(server, :my_worker, {1, :b})
-    Workex.Server.push(server, :my_worker, {2, :c})
-    Workex.Server.push(server, :my_worker, {1, :d})
-    Workex.Server.push(server, :my_worker, {3, :e})
+Workex.Server.push(server, :my_worker, {1, :a})
+Workex.Server.push(server, :my_worker, {1, :b})
+Workex.Server.push(server, :my_worker, {2, :c})
+Workex.Server.push(server, :my_worker, {1, :d})
+Workex.Server.push(server, :my_worker, {3, :e})
+```
 
 The worker will receive `[{1, :a}]` and then `[{3, :e}, {2, :c}, {1, :b}, {1, :d}]`
 
@@ -120,30 +134,34 @@ The worker will receive `[{1, :a}]` and then `[{3, :e}, {2, :c}, {1, :b}, {1, :d
 
 You can easily implement your own custom behaviour. This one stores messages in the lists, and sends them one by one, newer first.
 
-    defmodule StackOneByOne do
-      use Workex.Behaviour.Base
+```elixir
+defmodule StackOneByOne do
+  use Workex.Behaviour.Base
 
-      def init, do: []
-      
-      def clear([_|t]), do: t
-      def clear([]), do: []
+  def init, do: []
+  
+  def clear([_|t]), do: t
+  def clear([]), do: []
 
-      def add(messages, message), do: [message | messages]
-      def transform([h|_]), do: h
+  def add(messages, message), do: [message | messages]
+  def transform([h|_]), do: h
 
-      def empty?([]), do: true
-      def empty?(_), do: false
-    end
+  def empty?([]), do: true
+  def empty?(_), do: false
+end
+```
 
 Not all functions must be implemented. The default implementation is inherited from the base behaviour, which is the stack implementation. The compact version could look like this:
 
-    defmodule StackOneByOne do
-      use Workex.Behaviour.Base
+```elixir
+defmodule StackOneByOne do
+  use Workex.Behaviour.Base
 
-      def clear([_|t]), do: t
-      def clear([]), do: []
-      def transform([h|_]), do: h
-    end
+  def clear([_|t]), do: t
+  def clear([]), do: []
+  def transform([h|_]), do: h
+end
+```
 
 ## Removing the server process
 
@@ -151,18 +169,23 @@ The workex server is an Erlang process. If for some reason you don't want to cre
 
 Create the workex structure in the owner process:
 
-    workex = Workex.new(args)   # args follow the same rule as when creating the server
+```elixir
+workex = Workex.new(args)   # args follow the same rule as when creating the server
+```
 
 Then push messages:
 
-    new_workex = workex.push(worker_id, message)
-
+```elixir
+new_workex = workex.push(worker_id, message)
+```
 
 Finally, inside the owner process, you must handle the workex messages which will be sent by worker processes:
 
-    receive do
-      {:workex, workex_message} -> new_workex = workex.handle_message(workex_message)
-    end
+```elixir
+receive do
+  {:workex, workex_message} -> new_workex = workex.handle_message(workex_message)
+end
+```
 
 Notice that calls to _push_ and _handle\_message_ return the modified workex structure which you must incorporate in your owner process state.  
 See the implementation of the _Workex.Server_ for full details.

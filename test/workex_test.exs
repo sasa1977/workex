@@ -82,6 +82,18 @@ defmodule WorkexTest do
     assert_receive([{:a, 1}])
     assert_receive([{:b, 4}, {:a, 3}])
   end
+  
+  test "ets unique" do
+    {:ok, server} = Workex.Server.start([workers: [echo_worker(:worker_id, behaviour: Workex.Behaviour.EtsUnique)]])
+    
+    Workex.Server.push(server, :worker_id, {:a, 1})
+    Workex.Server.push(server, :worker_id, {:a, 2})
+    Workex.Server.push(server, :worker_id, {:a, 3})
+    Workex.Server.push(server, :worker_id, {:b, 4})
+    
+    assert_receive([{:a, 1}])
+    assert_receive([{:b, 4}, {:a, 3}])
+  end
 
   test "priority" do
     {:ok, server} = Workex.Server.start([workers: [echo_worker(:worker_id, behaviour: Workex.Behaviour.Priority)]])

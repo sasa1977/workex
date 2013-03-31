@@ -47,6 +47,29 @@ defmodule Workex.Behaviour do
     def transform(messages), do: Dict.values(messages)
     def empty?(messages), do: Dict.size(messages) == 0
   end
+  
+  defmodule EtsUnique do
+    use Workex.Behaviour.Base
+    
+    def init, do: {true, :ets.new(:workex_unique_ets, [:private, :set])}
+    
+    def add({empty, ets} = messages, message) do
+      :ets.insert(ets, message)
+      case empty do
+        false -> messages
+        true -> {false, ets}
+      end
+    end
+    
+    def transform({_, ets}), do: :ets.tab2list(ets)
+    def empty?({empty, _}), do: empty
+
+    def clear({true, _} = messages), do: messages
+    def clear({false, ets}) do
+      :ets.delete_all_objects(ets)
+      {true, ets}
+    end
+  end
 
   defmodule Priority do
     use Workex.Behaviour.Base

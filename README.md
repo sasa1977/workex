@@ -77,7 +77,7 @@ The throttling time incorporates the execution time of the worker. If the worker
 
 ## Message manipulation
 
-By default the worker receives messages as the chronologically sorted list (older messages come first). Three alternative implementations are provided.
+By default the worker receives messages as the chronologically sorted list (older messages come first). A couple of alternative implementations are provided.
 
 ### Stack
 
@@ -111,6 +111,10 @@ Workex.Server.push(workex_pid, :my_worker, {:msg3, :d})
 ```
     
 The worker will receive `[{:msg1, :a}]` and then `[{:msg3, :d}, {:msg2, :c}]`
+
+### EtsUnique
+
+Same as Unique, but uses private ets table instead of HashDict.
 
 ### Priority
 

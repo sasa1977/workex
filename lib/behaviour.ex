@@ -53,12 +53,9 @@ defmodule Workex.Behaviour do
     
     def init, do: {true, :ets.new(:workex_unique_ets, [:private, :set])}
     
-    def add({empty, ets} = messages, message) do
+    def add({_, ets}, message) do
       :ets.insert(ets, message)
-      case empty do
-        false -> messages
-        true -> {false, ets}
-      end
+      {false, ets}
     end
     
     def transform({_, ets}), do: :ets.tab2list(ets)

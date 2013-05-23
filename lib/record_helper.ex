@@ -15,7 +15,7 @@ defmodule Workex.RecordHelper do
 
   defp define_fields(args) do
     quote do
-      __MODULE__[unquote(Enum.map(args, function(:field, 1)))]
+      __MODULE__[unquote(Enum.map(args, function(field/1)))]
     end
   end
 

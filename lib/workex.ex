@@ -10,7 +10,7 @@ defrecord Workex, [:supervisor, {:workers, HashDict.new}] do
   def new(spec) do
     spec = Keyword.put(spec, :supervisor, init_supervisor(spec[:supervisor]))
     
-    List.foldl(spec[:workers], super(Keyword.delete(spec, :workers)), function(:add_worker, 2))
+    List.foldl(spec[:workers], super(Keyword.delete(spec, :workers)), function(add_worker/2))
   end
   
   defp init_supervisor(list) when is_list(list) do

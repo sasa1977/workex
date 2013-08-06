@@ -137,7 +137,7 @@ defmodule WorkexTest do
           id: :worker1, 
           state: self,
           job: 
-            function do
+            fn
               ([:crash], _) -> exit(:normal)
               (any, pid) -> 
                 pid <- any

@@ -80,7 +80,11 @@ defmodule WorkexTest do
     Workex.Server.push(server, :worker_id, {:b, 4})
     
     assert_receive([{:a, 1}])
-    assert_receive([{:b, 4}, {:a, 3}])
+    
+    message = receive do x -> x after 100 -> flunk end
+    assert length(message) == 2
+    assert message[:a] == 3
+    assert message[:b] == 4
   end
   
   test "ets unique" do

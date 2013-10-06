@@ -10,7 +10,7 @@ defrecord Workex.Priority, [elements: HashDict.new] do
 
   def to_list(fields([elements])) do
     List.foldl(Enum.sort(elements.keys), [], fn(priority, acc) ->
-      List.foldl(elements[priority], acc, [&1 | &2])
+      List.foldl(elements[priority], acc, &([&1 | &2]))
     end)
   end
 end

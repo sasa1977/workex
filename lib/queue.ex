@@ -3,8 +3,6 @@ defrecord Workex.Worker.Queue,
     :id, :worker_pid, :messages, {:behaviour, Workex.Behaviour.Queue}, {:worker_available, true}
   ] do
 
-  import Workex.RecordHelper
-    
   defoverridable [new: 1]
   def new(data) do
     super(worker_args(data)) |>
@@ -28,7 +26,7 @@ defrecord Workex.Worker.Queue,
     end)
   end
   
-  defp start_worker(this([id]), worker_args) do
+  defp start_worker(__MODULE__[id: id] = this, worker_args) do
     worker_args = [id: id, queue_pid: self] ++ worker_args
 
     {:ok, worker_pid} = case worker_args[:supervisor] do
@@ -38,7 +36,9 @@ defrecord Workex.Worker.Queue,
     this.worker_pid(worker_pid)
   end
   
-  defp maybe_notify_worker(this([{:worker_available, true}, worker_pid])) do
+  defp maybe_notify_worker(
+    __MODULE__[worker_available: true, worker_pid: worker_pid] = this
+  ) do
     unless empty?(this) do
       Workex.Worker.process(worker_pid, transform_messages(this))
       worker_available(false, this) |>
@@ -51,28 +51,33 @@ defrecord Workex.Worker.Queue,
   defp maybe_notify_worker(this), do: this
   
   defoverridable [worker_available: 2]
-  def worker_available(value, this([])) do
+  def worker_available(value, __MODULE__[] = this) do
     this = super(value, this)
     maybe_notify_worker(this)
   end
   
-  def push(message, this([behaviour, messages])) do
+  def push(message, 
+    __MODULE__[behaviour: behaviour, messages: messages] = this
+  ) do
     behaviour.add(messages, message) |>
     messages(this) |>
     maybe_notify_worker
   end
   
-  defp init_messages(this([behaviour])), do: this.messages(behaviour.init)
-  defp clear_messages(this([messages, behaviour])) do
-    behaviour.clear(messages) |>
-    messages(this)
+  defp init_messages(
+    __MODULE__[behaviour: behaviour] = this
+  ), do: this.messages(behaviour.init)
+
+  defp clear_messages(__MODULE__[messages: messages, behaviour: behaviour] = this) do
+    behaviour.clear(messages) 
+    |> this.messages
   end
   
-  defp transform_messages(fields([behaviour, messages])) do
+  defp transform_messages(__MODULE__[behaviour: behaviour, messages: messages]) do
     behaviour.transform(messages)
   end
 
-  defp empty?(fields([behaviour, messages])) do
+  defp empty?(__MODULE__[behaviour: behaviour, messages: messages]) do
     behaviour.empty?(messages)
   end
 end

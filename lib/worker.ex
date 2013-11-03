@@ -2,19 +2,21 @@ defmodule Workex.Worker do
   use ExActor
   
   defrecord State, [:id, :queue_pid, :job, :state] do
-    import Workex.RecordHelper
-
     defoverridable [new: 1]
     def new(data) do
       super(data) |> notify_parent
     end
 
-    defp notify_parent(this([queue_pid, id])) do
+    defp notify_parent(
+      __MODULE__[queue_pid: queue_pid, id: id] = this
+    ) do
       queue_pid <- {:workex, {:worker_created, id, self}}
       this
     end
 
-    def exec_job(messages, this([id, queue_pid, job, state])) do
+    def exec_job(messages, 
+      __MODULE__[id: id, queue_pid: queue_pid, job: job, state: state] = this
+    ) do
       new_state = job.(messages, state)
       queue_pid <- {:workex, {:worker_available, id}}
       this.state(new_state)

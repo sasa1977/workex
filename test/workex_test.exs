@@ -1,5 +1,3 @@
-Code.require_file "../test_helper.exs", __FILE__
-
 defmodule WorkexTest do
   use ExUnit.Case
   

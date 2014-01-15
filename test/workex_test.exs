@@ -142,7 +142,7 @@ defmodule WorkexTest do
             fn
               ([:crash], _) -> exit(:normal)
               (any, pid) -> 
-                pid <- any
+                send(pid, any)
                 pid
             end
         ],
@@ -230,11 +230,11 @@ defmodule WorkexTest do
   end
 
   defp echo_worker(worker_id, args // []) do
-    [id: worker_id, job: fn(msg, pid) -> pid <- msg; pid end, state: self] ++ args
+    [id: worker_id, job: fn(msg, pid) -> send(pid, msg); pid end, state: self] ++ args
   end
 
   defp delay_worker(worker_id, args // []) do
-    [id: worker_id, job: fn(msg, pid) -> pid <- msg; pid end, state: self, throttle: 30] ++ args
+    [id: worker_id, job: fn(msg, pid) -> send(pid, msg); pid end, state: self, throttle: 30] ++ args
   end
   
   defp rcv do

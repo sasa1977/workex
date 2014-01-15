@@ -10,7 +10,7 @@ defmodule Workex.Worker do
     defp notify_parent(
       __MODULE__[queue_pid: queue_pid, id: id] = this
     ) do
-      queue_pid <- {:workex, {:worker_created, id, self}}
+      send(queue_pid, {:workex, {:worker_created, id, self}})
       this
     end
 
@@ -18,7 +18,7 @@ defmodule Workex.Worker do
       __MODULE__[id: id, queue_pid: queue_pid, job: job, state: state] = this
     ) do
       new_state = job.(messages, state)
-      queue_pid <- {:workex, {:worker_available, id}}
+      send(queue_pid, {:workex, {:worker_available, id}})
       this.state(new_state)
     end
   end

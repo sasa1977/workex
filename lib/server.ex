@@ -4,7 +4,7 @@ defmodule Workex.Server do
     them messages. See readme for detailed description.
   """
 
-  use ExActor
+  use ExActor.Tolerant
   
   def init(workex_args) do
     initial_state(Workex.new(workex_args))

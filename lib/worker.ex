@@ -1,5 +1,5 @@
 defmodule Workex.Worker do
-  use ExActor
+  use ExActor.Tolerant
   
   defrecord State, [:id, :queue_pid, :job, :state] do
     defoverridable [new: 1]

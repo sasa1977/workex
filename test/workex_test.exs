@@ -182,19 +182,20 @@ defmodule WorkexTest do
 
   test "priority structure" do
     priority = Workex.Priority.new
-    assert priority.empty? == true
+    assert Workex.Priority.empty?(priority) == true
 
-    priority = priority.add(1, :one)
-    assert priority.empty? == false
-    assert priority.to_list == [:one]
+    priority = Workex.Priority.add(priority, 1, :one)
+    assert Workex.Priority.empty?(priority) == false
+    assert Workex.Priority.to_list(priority) == [:one]
 
-    priority = priority.
-      add(2, :two).
-      add(1, :three).
-      add(3, :four)
+    priority = 
+      priority
+      |> Workex.Priority.add(2, :two)
+      |> Workex.Priority.add(1, :three)
+      |> Workex.Priority.add(3, :four)
 
-    assert priority.empty? == false
-    assert priority.to_list == [:four, :two, :one, :three]
+    assert Workex.Priority.empty?(priority) == false
+    assert Workex.Priority.to_list(priority) == [:four, :two, :one, :three]
   end
 
   defmacrop between(x, y, z) do

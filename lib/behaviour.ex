@@ -72,7 +72,7 @@ defmodule Workex.Behaviour do
     use Workex.Behaviour.Base
 
     def init, do: Workex.Priority.new
-    def add(priority, message), do: Workex.Priority.add(elem(message, 0), message, priority)
+    def add(priority, message), do: Workex.Priority.add(priority, elem(message, 0), message)
     def transform(priority), do: Workex.Priority.to_list(priority)
     def empty?(priority), do: Workex.Priority.empty?(priority)
   end

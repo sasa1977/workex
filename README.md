@@ -180,14 +180,15 @@ workex = Workex.new(args)   # args follow the same rule as when creating the ser
 Then push messages:
 
 ```elixir
-new_workex = workex.push(worker_id, message)
+new_workex = Workex.push(workex, worker_id, message)
 ```
 
 Finally, inside the owner process, you must handle the workex messages which will be sent by worker processes:
 
 ```elixir
 receive do
-  {:workex, workex_message} -> new_workex = workex.handle_message(workex_message)
+  {:workex, workex_message} -> 
+    new_workex = Workex.handle_message(workex, workex_message)
 end
 ```
 

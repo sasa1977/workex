@@ -35,8 +35,10 @@ defmodule WorkexTest do
   end
 
   test "workex" do
-    workex = Workex.new([workers: [echo_worker(:worker_id)]])
-    workex = workex.push(:worker_id, 1)
+    workex = 
+      Workex.new([workers: [echo_worker(:worker_id)]])
+      |> Workex.push(:worker_id, 1)
+    
     assert_receive([1])
     
     get_and_handle_message(workex, 2)
@@ -45,8 +47,10 @@ defmodule WorkexTest do
   end
   
   test "multiple workex" do
-    workex = Workex.new([workers: [echo_worker(:worker1), echo_worker(:worker2)]])
-    workex.push(:worker1, 1).push(:worker2, 2)
+    Workex.new([workers: [echo_worker(:worker1), echo_worker(:worker2)]])
+    |> Workex.push(:worker1, 1)
+    |> Workex.push(:worker2, 2)
+    
     assert_receive([1])
     assert_receive([2])    
   end
@@ -151,16 +155,16 @@ defmodule WorkexTest do
     ])
 
     workex = get_and_handle_message(workex, 2)
-    original_workex = workex
 
-    workex = workex.push(:worker2, 1).push(:worker1, :crash)
+    workex = 
+      workex
+      |> Workex.push(:worker2, 1)
+      |> Workex.push(:worker1, :crash)
+    
     assert_receive([1])
     workex = get_and_handle_message(workex, 2)
-
-    assert workex.workers[:worker1].worker_pid != original_workex.workers[:worker1].worker_pid
-    assert workex.workers[:worker2].worker_pid == original_workex.workers[:worker2].worker_pid
     
-    workex.push(:worker1, 1)
+    Workex.push(workex, :worker1, 1)
     assert_receive([1])
   end
 
@@ -225,7 +229,7 @@ defmodule WorkexTest do
   defp get_and_handle_message(workex, cnt) do
     List.foldl(:lists.seq(1, cnt), workex, fn(_, workex) ->
       {:workex, msg} = rcv
-      workex.handle_message(msg)
+      Workex.handle_message(workex, msg)
     end)
   end
 

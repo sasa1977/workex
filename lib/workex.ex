@@ -1,14 +1,18 @@
-defrecord Workex, [:supervisor, {:workers, HashDict.new}] do
+defmodule Workex do
   @moduledoc """
     Workex structure which is used as a facade to multiple worker processes. 
     See readme for detailed description
   """
 
-  defoverridable [new: 1]
+  defrecordp :workex, [:supervisor, {:workers, HashDict.new}]
+
+  
   def new(spec) do
-    spec = Keyword.put(spec, :supervisor, init_supervisor(spec[:supervisor]))
-    
-    List.foldl(spec[:workers], super(Keyword.delete(spec, :workers)), &add_worker/2)
+    Enum.reduce(
+      spec[:workers],
+      workex(supervisor: init_supervisor(spec[:supervisor])), 
+      &add_worker(&2, &1)
+    )
   end
   
   defp init_supervisor(list) when is_list(list) do
@@ -23,32 +27,34 @@ defrecord Workex, [:supervisor, {:workers, HashDict.new}] do
     pid
   end
   
-  def add_worker(worker_args, 
-    __MODULE__[supervisor: supervisor] = this
+  defp add_worker(
+    workex(supervisor: supervisor) = workex,
+    worker_args 
   ) do
-    store_worker(Workex.Worker.Queue.new([{:supervisor, supervisor} | worker_args]), this)
+    store_worker(workex,
+      Workex.Worker.Queue.new([{:supervisor, supervisor} | worker_args])
+    )
   end
   
-  defp store_worker(worker, __MODULE__[workers: workers] = this) do
-    this.workers(Dict.put(workers, worker.id, worker))
+  defp store_worker(workex(workers: workers) = workex, worker) do
+    workex(workex, workers: Dict.put(workers, worker.id, worker))
   end
   
-  def push(worker_id, message, __MODULE__[workers: workers] = this) do
-    workers[worker_id].push(message) |>
-    store_worker(this)
+  def push(workex(workers: workers) = workex, worker_id, message) do
+    store_worker(workex, workers[worker_id].push(message))
   end
   
-  def handle_message({:worker_available, worker_id}, 
-    __MODULE__[workers: workers] = this
+  def handle_message(
+    workex(workers: workers) = workex,
+    {:worker_available, worker_id}
   ) do
-    workers[worker_id].worker_available(true) |>
-    store_worker(this)
+    store_worker(workex, workers[worker_id].worker_available(true))
   end
 
-  def handle_message({:worker_created, worker_id, worker_pid}, 
-    __MODULE__[workers: workers] = this
+  def handle_message(
+    workex(workers: workers) = workex,
+    {:worker_created, worker_id, worker_pid}
   ) do
-    workers[worker_id].worker_pid(worker_pid).worker_available(true) |>
-    store_worker(this)
+    store_worker(workex, workers[worker_id].worker_pid(worker_pid).worker_available(true))
   end
 end

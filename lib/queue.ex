@@ -1,22 +1,30 @@
-defrecord Workex.Worker.Queue, 
-  [
-    :id, :worker_pid, :messages, {:behaviour, Workex.Behaviour.Queue}, {:worker_available, true}
-  ] do
+defmodule Workex.Worker.Queue do
+  defrecordp :queue, [
+    :id, :worker_pid, :messages, :behaviour, {:worker_available, true}
+  ]
 
-  defoverridable [new: 1]
   def new(data) do
-    super(worker_args(data)) |>
-    init_messages |>
-    start_worker(job_args(data))
+    queue(
+      id: data[:id],
+      behaviour: data[:behaviour] || Workex.Behaviour.Queue
+    ) |> init_messages
+      |> start_worker(job_args(data))
   end
+
+  def id(queue(id: id)), do: id
   
-  defp worker_args(data) do
-    Enum.filter(data, fn({key, _}) -> key in [:id, :behaviour] end)
+  def worker_pid(queue() = queue, worker_pid) do
+    queue(queue, worker_pid: worker_pid)
   end
+
+  defp init_messages(
+    queue(behaviour: behaviour) = queue
+  ), do: queue(queue, messages: behaviour.init)
   
+
   defp job_args(data) do
-    Enum.filter(data, fn({key, _}) -> key in [:supervisor, :job, :state] end) |>
-    adjust_job(data[:throttle])
+    Enum.filter(data, fn({key, _}) -> key in [:supervisor, :job, :state] end) 
+    |> adjust_job(data[:throttle])
   end
 
   defp adjust_job(data, nil), do: data
@@ -26,58 +34,59 @@ defrecord Workex.Worker.Queue,
     end)
   end
   
-  defp start_worker(__MODULE__[id: id] = this, worker_args) do
+  defp start_worker(queue(id: id) = queue, worker_args) do
     worker_args = [id: id, queue_pid: self] ++ worker_args
 
     {:ok, worker_pid} = case worker_args[:supervisor] do
       nil -> Workex.Worker.start_link(worker_args)
       pid -> :supervisor.start_child(pid, [worker_args])
     end
-    this.worker_pid(worker_pid)
+
+    queue(queue, worker_pid: worker_pid)
   end
   
   defp maybe_notify_worker(
-    __MODULE__[worker_available: true, worker_pid: worker_pid] = this
+    queue(worker_available: true, worker_pid: worker_pid) = queue
   ) do
-    unless empty?(this) do
-      Workex.Worker.process(worker_pid, transform_messages(this))
-      worker_available(false, this) |>
-      clear_messages
+    unless empty?(queue) do
+      Workex.Worker.process(worker_pid, transform_messages(queue))
+
+      queue
+      |> worker_available(false) 
+      |> clear_messages
     else
-      this
+      queue
     end
   end
   
-  defp maybe_notify_worker(this), do: this
+  defp maybe_notify_worker(queue), do: queue
   
-  defoverridable [worker_available: 2]
-  def worker_available(value, __MODULE__[] = this) do
-    this = super(value, this)
-    maybe_notify_worker(this)
+  def worker_available(queue() = queue, value) do
+    queue
+    |> queue(worker_available: value)
+    |> maybe_notify_worker
   end
   
-  def push(message, 
-    __MODULE__[behaviour: behaviour, messages: messages] = this
+  def push( 
+    queue(behaviour: behaviour, messages: messages) = queue,
+    message
   ) do
-    behaviour.add(messages, message) |>
-    messages(this) |>
-    maybe_notify_worker
+    queue
+    |> queue(messages: behaviour.add(messages, message))
+    |> maybe_notify_worker
   end
   
-  defp init_messages(
-    __MODULE__[behaviour: behaviour] = this
-  ), do: this.messages(behaviour.init)
+  
 
-  defp clear_messages(__MODULE__[messages: messages, behaviour: behaviour] = this) do
-    behaviour.clear(messages) 
-    |> this.messages
+  defp clear_messages(queue(messages: messages, behaviour: behaviour) = queue) do
+    queue(queue, messages: behaviour.clear(messages))
   end
   
-  defp transform_messages(__MODULE__[behaviour: behaviour, messages: messages]) do
+  defp transform_messages(queue(behaviour: behaviour, messages: messages)) do
     behaviour.transform(messages)
   end
 
-  defp empty?(__MODULE__[behaviour: behaviour, messages: messages]) do
+  defp empty?(queue(behaviour: behaviour, messages: messages)) do
     behaviour.empty?(messages)
   end
 end

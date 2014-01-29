@@ -4,6 +4,8 @@ defmodule Workex do
     See readme for detailed description
   """
 
+  alias Workex.Worker.Queue, as: Queue
+
   defrecordp :workex, [:supervisor, {:workers, HashDict.new}]
 
   
@@ -37,24 +39,28 @@ defmodule Workex do
   end
   
   defp store_worker(workex(workers: workers) = workex, worker) do
-    workex(workex, workers: Dict.put(workers, worker.id, worker))
+    workex(workex, workers: Dict.put(workers, Queue.id(worker), worker))
   end
   
   def push(workex(workers: workers) = workex, worker_id, message) do
-    store_worker(workex, workers[worker_id].push(message))
+    store_worker(workex, Queue.push(workers[worker_id], message))
   end
   
   def handle_message(
     workex(workers: workers) = workex,
     {:worker_available, worker_id}
   ) do
-    store_worker(workex, workers[worker_id].worker_available(true))
+    store_worker(workex, Queue.worker_available(workers[worker_id], true))
   end
 
   def handle_message(
     workex(workers: workers) = workex,
     {:worker_created, worker_id, worker_pid}
   ) do
-    store_worker(workex, workers[worker_id].worker_pid(worker_pid).worker_available(true))
+    store_worker(workex, 
+      workers[worker_id]
+      |> Queue.worker_pid(worker_pid)
+      |> Queue.worker_available(true)
+    )
   end
 end

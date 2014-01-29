@@ -1,5 +1,7 @@
 defmodule WorkexTest do
   use ExUnit.Case
+
+  alias Workex.Worker.Queue, as: Queue
   
   setup do
     flush_messages
@@ -17,18 +19,17 @@ defmodule WorkexTest do
   
   test "workex worker" do
     workex_queue = Workex.Worker.Queue.new(echo_worker(:worker_id))
-    assert workex_queue.worker_available == true
     
-    workex_queue = workex_queue.push(1)
-    assert workex_queue.worker_available == false
+    workex_queue = workex_queue |> Queue.push(1)
+    
     assert_receive([1])
     assert_receive({:workex, {:worker_available, :worker_id}})
     assert_receive({:workex, {:worker_created, _, _}})
     
-    workex_queue = workex_queue.push(2).push(3)
+    workex_queue = workex_queue |> Queue.push(2) |> Queue.push(3)
     refute_receive(_)
     
-    workex_queue.worker_available(true)
+    Queue.worker_available(workex_queue, true)
     assert_receive([2,3])
     assert_receive({:workex, {:worker_available, :worker_id}})
     refute_receive(_)

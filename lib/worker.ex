@@ -1,33 +1,38 @@
 defmodule Workex.Worker do
   use ExActor.Tolerant
-  
-  defrecord State, [:id, :queue_pid, :job, :state] do
-    defoverridable [new: 1]
-    def new(data) do
-      super(data) |> notify_parent
-    end
 
-    defp notify_parent(
-      __MODULE__[queue_pid: queue_pid, id: id] = this
-    ) do
-      send(queue_pid, {:workex, {:worker_created, id, self}})
-      this
-    end
+  defrecordp :worker, [:id, :queue_pid, :job, :state]
 
-    def exec_job(messages, 
-      __MODULE__[id: id, queue_pid: queue_pid, job: job, state: state] = this
-    ) do
+
+  definit args do
+    worker(
+      id: args[:id],
+      queue_pid: args[:queue_pid],
+      job: args[:job],
+      state: args[:state]
+    )
+    |> notify_parent
+    |> initial_state
+  end
+
+  defp notify_parent(worker(queue_pid: queue_pid, id: id) = worker) do
+    send(queue_pid, {:workex, {:worker_created, id, self}})
+    worker
+  end
+
+
+  defcast process(messages), state: worker do
+    worker
+    |> exec_job(messages)
+    |> new_state
+  end
+
+  def exec_job(
+    worker(id: id, queue_pid: queue_pid, job: job, state: state) = worker,
+    messages
+  ) do
       new_state = job.(messages, state)
       send(queue_pid, {:workex, {:worker_available, id}})
-      this.state(new_state)
-    end
-  end
-  
-  def init(args) do
-    initial_state(State.new(args))
-  end
-  
-  defcast process(messages), state: state do
-    new_state(state.exec_job(messages))
+      worker(worker, state: new_state)
   end
 end

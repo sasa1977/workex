@@ -9,7 +9,7 @@ defmodule WorkexTest do
     :ok
   end
 
-  defp flush_messages(acc // []) do
+  defp flush_messages(acc \\ []) do
     receive do
       x -> flush_messages([x | acc])
     after 50 ->
@@ -235,11 +235,11 @@ defmodule WorkexTest do
     end)
   end
 
-  defp echo_worker(worker_id, args // []) do
+  defp echo_worker(worker_id, args \\ []) do
     [id: worker_id, job: fn(msg, pid) -> send(pid, msg); pid end, state: self] ++ args
   end
 
-  defp delay_worker(worker_id, args // []) do
+  defp delay_worker(worker_id, args \\ []) do
     [id: worker_id, job: fn(msg, pid) -> send(pid, msg); pid end, state: self, throttle: 30] ++ args
   end
   

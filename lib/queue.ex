@@ -1,29 +1,27 @@
 defmodule Workex.Worker.Queue do
-  defrecordp :queue, [
-    :id, :worker_pid, :messages, :behaviour, {:worker_available, true}
-  ]
+  defstruct [:id, :worker_pid, :messages, :behaviour, {:worker_available, true}]
 
   def new(data) do
-    queue(
+    %__MODULE__{
       id: data[:id],
       behaviour: data[:behaviour] || Workex.Behaviour.Queue
-    ) |> init_messages
+    } |> init_messages
       |> start_worker(job_args(data))
   end
 
-  def id(queue(id: id)), do: id
-  
-  def worker_pid(queue() = queue, worker_pid) do
-    queue(queue, worker_pid: worker_pid)
+  def id(%__MODULE__{id: id}), do: id
+
+  def worker_pid(queue, worker_pid) do
+    %__MODULE__{queue | worker_pid: worker_pid}
   end
 
   defp init_messages(
-    queue(behaviour: behaviour) = queue
-  ), do: queue(queue, messages: behaviour.init)
-  
+    %__MODULE__{behaviour: behaviour} = queue
+  ), do: %__MODULE__{queue | messages: behaviour.init}
+
 
   defp job_args(data) do
-    Enum.filter(data, fn({key, _}) -> key in [:supervisor, :job, :state] end) 
+    Enum.filter(data, fn({key, _}) -> key in [:supervisor, :job, :state] end)
     |> adjust_job(data[:throttle])
   end
 
@@ -33,8 +31,8 @@ defmodule Workex.Worker.Queue do
       Workex.Throttler.throttle(throttle_time, fn() -> data[:job].(messages, state) end)
     end)
   end
-  
-  defp start_worker(queue(id: id) = queue, worker_args) do
+
+  defp start_worker(%__MODULE__{id: id} = queue, worker_args) do
     worker_args = [id: id, queue_pid: self] ++ worker_args
 
     {:ok, worker_pid} = case worker_args[:supervisor] do
@@ -42,51 +40,49 @@ defmodule Workex.Worker.Queue do
       pid -> :supervisor.start_child(pid, [worker_args])
     end
 
-    queue(queue, worker_pid: worker_pid)
+    %__MODULE__{queue | worker_pid: worker_pid}
   end
-  
+
   defp maybe_notify_worker(
-    queue(worker_available: true, worker_pid: worker_pid) = queue
+    %__MODULE__{worker_available: true, worker_pid: worker_pid} = queue
   ) do
     unless empty?(queue) do
       Workex.Worker.process(worker_pid, transform_messages(queue))
 
       queue
-      |> worker_available(false) 
+      |> worker_available(false)
       |> clear_messages
     else
       queue
     end
   end
-  
+
   defp maybe_notify_worker(queue), do: queue
-  
-  def worker_available(queue() = queue, value) do
-    queue
-    |> queue(worker_available: value)
+
+  def worker_available(queue, value) do
+    %__MODULE__{queue | worker_available: value}
     |> maybe_notify_worker
   end
-  
-  def push( 
-    queue(behaviour: behaviour, messages: messages) = queue,
+
+  def push(
+    %__MODULE__{behaviour: behaviour, messages: messages} = queue,
     message
   ) do
-    queue
-    |> queue(messages: behaviour.add(messages, message))
+    %__MODULE__{queue | messages: behaviour.add(messages, message)}
     |> maybe_notify_worker
   end
-  
-  
 
-  defp clear_messages(queue(messages: messages, behaviour: behaviour) = queue) do
-    queue(queue, messages: behaviour.clear(messages))
+
+
+  defp clear_messages(%__MODULE__{messages: messages, behaviour: behaviour} = queue) do
+    %__MODULE__{queue | messages: behaviour.clear(messages)}
   end
-  
-  defp transform_messages(queue(behaviour: behaviour, messages: messages)) do
+
+  defp transform_messages(%__MODULE__{behaviour: behaviour, messages: messages}) do
     behaviour.transform(messages)
   end
 
-  defp empty?(queue(behaviour: behaviour, messages: messages)) do
+  defp empty?(%__MODULE__{behaviour: behaviour, messages: messages}) do
     behaviour.empty?(messages)
   end
 end

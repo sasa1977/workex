@@ -13,6 +13,6 @@ defmodule Workex.Mixfile do
   end
 
   defp deps do
-    [{:exactor, "0.2.0", github: "sasa1977/exactor"}]
+    [{:exactor, github: "sasa1977/exactor"}]
   end
 end

@@ -1,12 +1,12 @@
+Backpressure and flow control in EVM processes.
+
 # Workex
 
-Normally, worker processes in Erlang/Elixir don't have much control over the received messages. This is especially true for the gen_server based processes, which process messages one by one, as they are received.
+Normally, worker processes in Erlang/Elixir don't have much control over received messages. This is especially true for `gen_server` based processes, where messages are processed one by one.
 
-The Workex library provides the control over message receiving by splitting the worker in two processes: one which accepts messages, and the other which processes them.
+The WorkEx library provides the control over message receiving by splitting the worker in two processes: one which accepts messages, and the other which processes them. This is essentially a middle-man (process) technique.
 
-The primary use case is the accumulation of the messages which are received while the worker is processing the current request. This makes it possible to handle all accumulated messages at once.
-
-Another feature is the option to control how the messages are accumulated, which allows message rearranging (for example to eliminate duplicates, or to handle the new messages first) and discarding.
+The primary use case is the accumulation of received messages, while the worker is processing the current request. This makes it possible to handle all accumulated messages at once, control message accumulation, rearrange pending messages, prioritize, or discard some requests.
 
 ## Workex server
 
@@ -29,7 +29,7 @@ Workex.Server.push(workex_pid, :my_worker, :msg1)
 Workex.Server.push(workex_pid, :my_worker, :msg2)
 Workex.Server.push(workex_pid, :my_worker, :msg3)
 ```
-    
+
 Here, the worker will receive two messages with values `[:msg1]` and then `[:msg2, :msg3]`.
 
 ## Process structure
@@ -45,8 +45,8 @@ It is possible to use a _simple\_one\_for\_one_ supervisor to start and supervis
 # using your own simple_one_for_one
 {:ok, server} = Workex.Server.start([supervisor: pid, workers: [...]])
 ```
-    
-In the first approach, the workex creates (and links) its own supervisor with the arguments provided. In the second version, you provide a pid of the already created _simple\_one\_for\_one_ supervisor.  
+
+In the first approach, the workex creates (and links) its own supervisor with the arguments provided. In the second version, you provide a pid of the already created _simple\_one\_for\_one_ supervisor.
 When supervisor is used, worker processes are not linked to the workex server.
 
 Notice that the workex server is not included in the supervision tree: it is up to you to do it. However, the server will be linked to the supervisor of worker processes (if you use one), so in case of its termination, it will also die.
@@ -92,7 +92,7 @@ Workex.Server.push(workex_pid, :my_worker, :msg1)
 Workex.Server.push(workex_pid, :my_worker, :msg2)
 Workex.Server.push(workex_pid, :my_worker, :msg3)
 ```
-    
+
 The worker will receive `[:msg1]` and then `[:msg3 ,:msg2]`.
 
 ### Unique
@@ -109,7 +109,7 @@ Workex.Server.push(workex_pid, :my_worker, {:msg2, :b})
 Workex.Server.push(workex_pid, :my_worker, {:msg2, :c})
 Workex.Server.push(workex_pid, :my_worker, {:msg3, :d})
 ```
-    
+
 The worker will receive `[{:msg1, :a}]` and then `[{:msg3, :d}, {:msg2, :c}]`
 
 ### EtsUnique
@@ -143,7 +143,7 @@ defmodule StackOneByOne do
   use Workex.Behaviour.Base
 
   def init, do: []
-  
+
   def clear([_|t]), do: t
   def clear([]), do: []
 
@@ -169,7 +169,7 @@ end
 
 ## Removing the server process
 
-The workex server is an Erlang process. If for some reason you don't want to create this extra process, you can use the Workex module inside your own process. 
+The workex server is an Erlang process. If for some reason you don't want to create this extra process, you can use the Workex module inside your own process.
 
 Create the workex structure in the owner process:
 
@@ -187,12 +187,12 @@ Finally, inside the owner process, you must handle the workex messages which wil
 
 ```elixir
 receive do
-  {:workex, workex_message} -> 
+  {:workex, workex_message} ->
     new_workex = Workex.handle_message(workex, workex_message)
 end
 ```
 
-Notice that calls to _push_ and _handle\_message_ return the modified workex structure which you must incorporate in your owner process state.  
+Notice that calls to _push_ and _handle\_message_ return the modified workex structure which you must incorporate in your owner process state.
 See the implementation of the _Workex.Server_ for full details.
 
 ## Performance considerations

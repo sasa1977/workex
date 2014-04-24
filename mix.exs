@@ -14,9 +14,7 @@ defmodule Workex.Mixfile do
         licenses: ["MIT"],
         links: [{"Github", "https://github.com/sasa1977/workex"}]
       ],
-      description: """
-        Backpressure and flow control in EVM processes.
-      """
+      description: "Backpressure and flow control in EVM processes."
     ]
   end
 

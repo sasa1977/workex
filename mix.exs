@@ -1,3 +1,5 @@
+Code.ensure_loaded?(Hex) and Hex.start
+
 defmodule Workex.Mixfile do
   use Mix.Project
 
@@ -23,6 +25,6 @@ defmodule Workex.Mixfile do
   end
 
   defp deps do
-    [{:exactor, "0.2.1", github: "sasa1977/exactor"}]
+    [{:exactor, "0.3.0"}]
   end
 end

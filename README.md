@@ -1,5 +1,3 @@
-Backpressure and flow control in EVM processes.
-
 # Workex
 
 Normally, worker processes in Erlang/Elixir don't have much control over received messages. This is especially true for `gen_server` based processes, where messages are processed one by one.

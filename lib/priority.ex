@@ -15,7 +15,11 @@ defmodule Workex.Priority do
   end
 
   def to_list(%__MODULE__{elements: elements}) do
-    Enum.sort(elements.keys)
-    |> Enum.reduce([], &(Enum.reverse(elements[&1]) ++ &2))
+    elements
+    |> Dict.to_list
+    |> Enum.sort(&(&1 > &2))
+    |> Stream.map(&(elem(&1, 1)))
+    |> Stream.map(&Enum.reverse/1)
+    |> Enum.concat
   end
 end

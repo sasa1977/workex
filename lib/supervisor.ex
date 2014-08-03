@@ -1,5 +1,5 @@
 defmodule Workex.Worker.Supervisor do
-  use Supervisor.Behaviour
+  use Supervisor
 
   def init(args) do
     tree = [worker(Workex.Worker, [], args)]

@@ -6,8 +6,8 @@ defmodule Workex.Mixfile do
   def project do
     [
       app: :workex,
-      version: "0.3.0",
-      elixir: "~> 1.0.0-rc1",
+      version: "0.4.0",
+      elixir: "~> 1.0.0",
       deps: deps,
       package: [
         contributors: ["Saša Jurić"],
@@ -23,6 +23,6 @@ defmodule Workex.Mixfile do
   end
 
   defp deps do
-    [{:exactor, "0.7.0"}]
+    [{:exactor, "1.0.0"}]
   end
 end

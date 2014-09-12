@@ -11,7 +11,7 @@ The primary use case is the accumulation of received messages, while the worker 
 Be sure to include a dependency in your `mix.exs`:
 
 ```elixir
-deps: [{:workex, "~> 0.3.0"}, ...]
+deps: [{:workex, "~> 0.4.0"}, ...]
 ```
 
 This is the simplest usage form, where you start a server which is a wrapper around multiple workers. A worker is a function running in its own process and consuming messages. A message can be any erlang term.

@@ -6,7 +6,7 @@ defmodule Workex.Mixfile do
   def project do
     [
       app: :workex,
-      version: "0.4.0",
+      version: "0.5.0",
       elixir: "~> 1.0.0",
       deps: deps,
       package: [

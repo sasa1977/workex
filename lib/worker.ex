@@ -3,8 +3,8 @@ defmodule Workex.Worker do
 
   defstruct [:id, :queue_pid, :job, :state]
 
-
-  definit args do
+  defstart start(args)
+  defstart start_link(args) do
     %__MODULE__{
       id: args[:id],
       queue_pid: args[:queue_pid],

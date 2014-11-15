@@ -1,1 +1,1 @@
-%{"exactor": {:package, "1.0.0"}}
+%{"exactor": {:hex, :exactor, "2.0.0"}}

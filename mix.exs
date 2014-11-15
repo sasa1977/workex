@@ -23,6 +23,6 @@ defmodule Workex.Mixfile do
   end
 
   defp deps do
-    [{:exactor, "1.0.0"}]
+    [{:exactor, "~> 2.0.0"}]
   end
 end

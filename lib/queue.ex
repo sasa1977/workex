@@ -19,7 +19,7 @@ defmodule Workex.Worker.Queue do
 
 
   defp job_args(data) do
-    Enum.filter(data, fn({key, _}) -> key in [:supervisor, :job, :state] end)
+    Keyword.take(data, [:job, :state])
     |> adjust_job(data[:throttle])
   end
 
@@ -31,13 +31,7 @@ defmodule Workex.Worker.Queue do
   end
 
   defp start_worker(queue, worker_args) do
-    worker_args = [queue_pid: self] ++ worker_args
-
-    {:ok, worker_pid} = case worker_args[:supervisor] do
-      nil -> Workex.Worker.start_link(worker_args)
-      pid -> :supervisor.start_child(pid, [worker_args])
-    end
-
+    {:ok, worker_pid} = Workex.Worker.start_link([queue_pid: self] ++ worker_args)
     %__MODULE__{queue | worker_pid: worker_pid}
   end
 

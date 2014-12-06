@@ -1,8 +1,6 @@
 defmodule WorkexTest do
   use ExUnit.Case
 
-  alias Workex.Worker.Queue, as: Queue
-
   setup do
     flush_messages
     :random.seed(:erlang.now)
@@ -15,23 +13,6 @@ defmodule WorkexTest do
     after 50 ->
       acc
     end
-  end
-
-  test "workex queue" do
-    workex_queue = Workex.Worker.Queue.new(echo_worker)
-
-    workex_queue = workex_queue |> Queue.push(1)
-
-    assert_receive([1])
-    assert_receive({:workex, :worker_available})
-
-    workex_queue = workex_queue |> Queue.push(2) |> Queue.push(3)
-    refute_receive(_)
-
-    Queue.worker_available(workex_queue, true)
-    assert_receive([2,3])
-    assert_receive({:workex, :worker_available})
-    refute_receive(_)
   end
 
   test "workex server" do

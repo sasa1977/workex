@@ -1,5 +1,5 @@
 defmodule Workex do
-  defstruct [:worker_pid, :messages, :behaviour, :worker_available]
+  defstruct [:worker_pid, :messages, :callback, :worker_available]
   @moduledoc """
     A gen_server based process which can be used to manipulate multiple workers and send
     them messages. See readme for detailed description.
@@ -7,14 +7,13 @@ defmodule Workex do
 
   use ExActor.Tolerant
 
-  defstart start(worker_args)
-  defstart start_link(worker_args)
+  defstart start(callback \\ Workex.Callback.Queue, worker_args)
+  defstart start_link(callback \\ Workex.Callback.Queue, worker_args)
 
-  definit {worker_args} do
-    behaviour = worker_args[:behaviour] || Workex.Behaviour.Queue
+  definit {callback, worker_args} do
     %__MODULE__{
-      behaviour: behaviour,
-      messages: behaviour.init
+      callback: callback,
+      messages: callback.init
     }
     |> start_worker(Keyword.take(worker_args, [:job, :state]) |> adjust_job(worker_args[:throttle]))
     |> initial_state
@@ -34,9 +33,9 @@ defmodule Workex do
 
 
   defcast push(message),
-    state: %__MODULE__{behaviour: behaviour, messages: messages} = state
+    state: %__MODULE__{callback: callback, messages: messages} = state
   do
-    %__MODULE__{state | messages: behaviour.add(messages, message)}
+    %__MODULE__{state | messages: callback.add(messages, message)}
     |> maybe_notify_worker
     |> new_state
   end
@@ -54,16 +53,16 @@ defmodule Workex do
   defp maybe_notify_worker(state), do: state
 
 
-  defp empty?(%__MODULE__{behaviour: behaviour, messages: messages}) do
-    behaviour.empty?(messages)
+  defp empty?(%__MODULE__{callback: callback, messages: messages}) do
+    callback.empty?(messages)
   end
 
-  defp clear_messages(%__MODULE__{messages: messages, behaviour: behaviour} = state) do
-    %__MODULE__{state | messages: behaviour.clear(messages)}
+  defp clear_messages(%__MODULE__{messages: messages, callback: callback} = state) do
+    %__MODULE__{state | messages: callback.clear(messages)}
   end
 
-  defp transform_messages(%__MODULE__{behaviour: behaviour, messages: messages}) do
-    behaviour.transform(messages)
+  defp transform_messages(%__MODULE__{callback: callback, messages: messages}) do
+    callback.transform(messages)
   end
 
 

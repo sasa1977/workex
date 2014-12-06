@@ -23,7 +23,7 @@ defmodule WorkexTest do
   end
 
   test "stack" do
-    {:ok, server} = Workex.start(echo_worker(behaviour: Workex.Behaviour.Stack))
+    {:ok, server} = Workex.start(Workex.Callback.Stack, echo_worker)
 
     Workex.push(server, 1)
     Workex.push(server, 2)
@@ -34,7 +34,7 @@ defmodule WorkexTest do
   end
 
   test "unique" do
-    {:ok, server} = Workex.start(echo_worker(behaviour: Workex.Behaviour.Unique))
+    {:ok, server} = Workex.start(Workex.Callback.Unique, echo_worker)
 
     Workex.push(server, {:a, 1})
     Workex.push(server, {:a, 2})
@@ -50,7 +50,7 @@ defmodule WorkexTest do
   end
 
   test "ets unique" do
-    {:ok, server} = Workex.start(echo_worker(behaviour: Workex.Behaviour.EtsUnique))
+    {:ok, server} = Workex.start(Workex.Callback.EtsUnique, echo_worker)
 
     Workex.push(server, {:a, 1})
     Workex.push(server, {:a, 2})
@@ -62,7 +62,7 @@ defmodule WorkexTest do
   end
 
   test "priority" do
-    {:ok, server} = Workex.start(echo_worker(behaviour: Workex.Behaviour.Priority))
+    {:ok, server} = Workex.start(Workex.Callback.Priority, echo_worker)
 
     Workex.push(server, {1, :a})
     Workex.push(server, {1, :b})
@@ -75,7 +75,7 @@ defmodule WorkexTest do
   end
 
   defmodule StackOneByOne do
-    use Workex.Behaviour.Base
+    use Workex.Callback
 
     def init, do: []
     def clear([_|t]), do: t
@@ -83,8 +83,8 @@ defmodule WorkexTest do
     def transform([h|_]), do: h
   end
 
-  test "custom behaviour" do
-    {:ok, server} = Workex.start(echo_worker(behaviour: StackOneByOne))
+  test "custom callback" do
+    {:ok, server} = Workex.start(StackOneByOne, echo_worker)
 
     Workex.push(server, 1)
     Workex.push(server, 2)

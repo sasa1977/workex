@@ -16,30 +16,30 @@ defmodule WorkexTest do
   end
 
   test "workex server" do
-    {:ok, server} = Workex.Server.start(echo_worker)
+    {:ok, server} = Workex.start(echo_worker)
 
-    Workex.Server.push(server, :foo)
+    Workex.push(server, :foo)
     assert_receive([:foo])
   end
 
   test "stack" do
-    {:ok, server} = Workex.Server.start(echo_worker(behaviour: Workex.Behaviour.Stack))
+    {:ok, server} = Workex.start(echo_worker(behaviour: Workex.Behaviour.Stack))
 
-    Workex.Server.push(server, 1)
-    Workex.Server.push(server, 2)
-    Workex.Server.push(server, 3)
+    Workex.push(server, 1)
+    Workex.push(server, 2)
+    Workex.push(server, 3)
 
     assert_receive([1])
     assert_receive([3,2])
   end
 
   test "unique" do
-    {:ok, server} = Workex.Server.start(echo_worker(behaviour: Workex.Behaviour.Unique))
+    {:ok, server} = Workex.start(echo_worker(behaviour: Workex.Behaviour.Unique))
 
-    Workex.Server.push(server, {:a, 1})
-    Workex.Server.push(server, {:a, 2})
-    Workex.Server.push(server, {:a, 3})
-    Workex.Server.push(server, {:b, 4})
+    Workex.push(server, {:a, 1})
+    Workex.push(server, {:a, 2})
+    Workex.push(server, {:a, 3})
+    Workex.push(server, {:b, 4})
 
     assert_receive([{:a, 1}])
 
@@ -50,25 +50,25 @@ defmodule WorkexTest do
   end
 
   test "ets unique" do
-    {:ok, server} = Workex.Server.start(echo_worker(behaviour: Workex.Behaviour.EtsUnique))
+    {:ok, server} = Workex.start(echo_worker(behaviour: Workex.Behaviour.EtsUnique))
 
-    Workex.Server.push(server, {:a, 1})
-    Workex.Server.push(server, {:a, 2})
-    Workex.Server.push(server, {:a, 3})
-    Workex.Server.push(server, {:b, 4})
+    Workex.push(server, {:a, 1})
+    Workex.push(server, {:a, 2})
+    Workex.push(server, {:a, 3})
+    Workex.push(server, {:b, 4})
 
     assert_receive([{:a, 1}])
     assert_receive([{:b, 4}, {:a, 3}])
   end
 
   test "priority" do
-    {:ok, server} = Workex.Server.start(echo_worker(behaviour: Workex.Behaviour.Priority))
+    {:ok, server} = Workex.start(echo_worker(behaviour: Workex.Behaviour.Priority))
 
-    Workex.Server.push(server, {1, :a})
-    Workex.Server.push(server, {1, :b})
-    Workex.Server.push(server, {2, :c})
-    Workex.Server.push(server, {1, :d})
-    Workex.Server.push(server, {3, :e})
+    Workex.push(server, {1, :a})
+    Workex.push(server, {1, :b})
+    Workex.push(server, {2, :c})
+    Workex.push(server, {1, :d})
+    Workex.push(server, {3, :e})
 
     assert_receive([{1, :a}])
     assert_receive([{3, :e}, {2, :c}, {1, :b}, {1, :d}])
@@ -84,11 +84,11 @@ defmodule WorkexTest do
   end
 
   test "custom behaviour" do
-    {:ok, server} = Workex.Server.start(echo_worker(behaviour: StackOneByOne))
+    {:ok, server} = Workex.start(echo_worker(behaviour: StackOneByOne))
 
-    Workex.Server.push(server, 1)
-    Workex.Server.push(server, 2)
-    Workex.Server.push(server, 3)
+    Workex.push(server, 1)
+    Workex.push(server, 2)
+    Workex.push(server, 3)
 
     assert_receive(1)
     assert_receive(3)
@@ -96,11 +96,11 @@ defmodule WorkexTest do
   end
 
   test "multiple random" do
-    {:ok, server} = Workex.Server.start(delay_worker)
+    {:ok, server} = Workex.start(delay_worker)
 
     messages = generate_messages
     Enum.each(messages, fn(msg) ->
-      Workex.Server.push(server, msg)
+      Workex.push(server, msg)
       :timer.sleep(10)
     end)
 

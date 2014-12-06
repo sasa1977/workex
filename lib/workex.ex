@@ -1,4 +1,4 @@
-defmodule Workex.Server do
+defmodule Workex do
   defstruct [:worker_pid, :messages, :behaviour, :worker_available]
   @moduledoc """
     A gen_server based process which can be used to manipulate multiple workers and send

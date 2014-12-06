@@ -6,18 +6,22 @@ defmodule Workex.Server do
 
   use ExActor.Tolerant
 
-  defstart start(workex_args)
-  defstart start_link(workex_args) do
-    initial_state(Workex.new(workex_args))
+  alias Workex.Worker.Queue
+
+  defstart start(worker_args)
+  defstart start_link(worker_args) do
+    initial_state(Queue.new(worker_args))
   end
 
-  defcast push(worker_id, message), state: workex do
-    new_state(Workex.push(workex, worker_id, message))
+  defcast push(message), state: queue do
+    queue
+    |> Queue.push(message)
+    |> new_state
   end
-  
-  defhandleinfo {:workex, msg}, state: workex do
-    workex
-    |> Workex.handle_message(msg)
+
+  defhandleinfo {:workex, :worker_available}, state: queue do
+    queue
+    |> Queue.worker_available(true)
     |> new_state
   end
 

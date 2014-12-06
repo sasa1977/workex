@@ -1,15 +1,13 @@
 defmodule Workex.Worker.Queue do
-  defstruct [:id, :worker_pid, :messages, :behaviour, {:worker_available, true}]
+  defstruct [:worker_pid, :messages, :behaviour, {:worker_available, true}]
 
   def new(data) do
     %__MODULE__{
-      id: data[:id],
       behaviour: data[:behaviour] || Workex.Behaviour.Queue
-    } |> init_messages
-      |> start_worker(job_args(data))
+    }
+    |> init_messages
+    |> start_worker(job_args(data))
   end
-
-  def id(%__MODULE__{id: id}), do: id
 
   def worker_pid(queue, worker_pid) do
     %__MODULE__{queue | worker_pid: worker_pid}
@@ -32,8 +30,8 @@ defmodule Workex.Worker.Queue do
     end)
   end
 
-  defp start_worker(%__MODULE__{id: id} = queue, worker_args) do
-    worker_args = [id: id, queue_pid: self] ++ worker_args
+  defp start_worker(queue, worker_args) do
+    worker_args = [queue_pid: self] ++ worker_args
 
     {:ok, worker_pid} = case worker_args[:supervisor] do
       nil -> Workex.Worker.start_link(worker_args)

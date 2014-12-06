@@ -2,10 +2,10 @@ defmodule WorkexTest do
   use ExUnit.Case
 
   alias Workex.Worker.Queue, as: Queue
-  
+
   setup do
     flush_messages
-    seed_random
+    :random.seed(:erlang.now)
     :ok
   end
 
@@ -16,168 +16,113 @@ defmodule WorkexTest do
       acc
     end
   end
-  
-  test "workex worker" do
-    workex_queue = Workex.Worker.Queue.new(echo_worker(:worker_id))
-    
+
+  test "workex queue" do
+    workex_queue = Workex.Worker.Queue.new(echo_worker)
+
     workex_queue = workex_queue |> Queue.push(1)
-    
+
     assert_receive([1])
-    assert_receive({:workex, {:worker_available, :worker_id}})
-    assert_receive({:workex, {:worker_created, _, _}})
-    
+    assert_receive({:workex, :worker_available})
+
     workex_queue = workex_queue |> Queue.push(2) |> Queue.push(3)
     refute_receive(_)
-    
+
     Queue.worker_available(workex_queue, true)
     assert_receive([2,3])
-    assert_receive({:workex, {:worker_available, :worker_id}})
+    assert_receive({:workex, :worker_available})
     refute_receive(_)
   end
 
-  test "workex" do
-    workex = 
-      Workex.new([workers: [echo_worker(:worker_id)]])
-      |> Workex.push(:worker_id, 1)
-    
-    assert_receive([1])
-    
-    get_and_handle_message(workex, 2)
-
-    refute_receive(_)
-  end
-  
-  test "multiple workex" do
-    Workex.new([workers: [echo_worker(:worker1), echo_worker(:worker2)]])
-    |> Workex.push(:worker1, 1)
-    |> Workex.push(:worker2, 2)
-    
-    assert_receive([1])
-    assert_receive([2])    
-  end
-  
   test "workex server" do
-    {:ok, server} = Workex.Server.start([workers: [echo_worker(:worker_id)]])
-    
-    Workex.Server.push(server, :worker_id, 1)
-    assert_receive([1])
+    {:ok, server} = Workex.Server.start(echo_worker)
+
+    Workex.Server.push(server, :foo)
+    assert_receive([:foo])
   end
-  
+
   test "stack" do
-    {:ok, server} = Workex.Server.start([workers: [echo_worker(:worker_id, behaviour: Workex.Behaviour.Stack)]])
-    
-    Workex.Server.push(server, :worker_id, 1)
-    Workex.Server.push(server, :worker_id, 2)
-    Workex.Server.push(server, :worker_id, 3)
-    
+    {:ok, server} = Workex.Server.start(echo_worker(behaviour: Workex.Behaviour.Stack))
+
+    Workex.Server.push(server, 1)
+    Workex.Server.push(server, 2)
+    Workex.Server.push(server, 3)
+
     assert_receive([1])
     assert_receive([3,2])
   end
-  
+
   test "unique" do
-    {:ok, server} = Workex.Server.start([workers: [echo_worker(:worker_id, behaviour: Workex.Behaviour.Unique)]])
-    
-    Workex.Server.push(server, :worker_id, {:a, 1})
-    Workex.Server.push(server, :worker_id, {:a, 2})
-    Workex.Server.push(server, :worker_id, {:a, 3})
-    Workex.Server.push(server, :worker_id, {:b, 4})
-    
+    {:ok, server} = Workex.Server.start(echo_worker(behaviour: Workex.Behaviour.Unique))
+
+    Workex.Server.push(server, {:a, 1})
+    Workex.Server.push(server, {:a, 2})
+    Workex.Server.push(server, {:a, 3})
+    Workex.Server.push(server, {:b, 4})
+
     assert_receive([{:a, 1}])
-    
+
     message = receive do x -> x after 100 -> flunk end
     assert length(message) == 2
     assert message[:a] == 3
     assert message[:b] == 4
   end
-  
+
   test "ets unique" do
-    {:ok, server} = Workex.Server.start([workers: [echo_worker(:worker_id, behaviour: Workex.Behaviour.EtsUnique)]])
-    
-    Workex.Server.push(server, :worker_id, {:a, 1})
-    Workex.Server.push(server, :worker_id, {:a, 2})
-    Workex.Server.push(server, :worker_id, {:a, 3})
-    Workex.Server.push(server, :worker_id, {:b, 4})
-    
+    {:ok, server} = Workex.Server.start(echo_worker(behaviour: Workex.Behaviour.EtsUnique))
+
+    Workex.Server.push(server, {:a, 1})
+    Workex.Server.push(server, {:a, 2})
+    Workex.Server.push(server, {:a, 3})
+    Workex.Server.push(server, {:b, 4})
+
     assert_receive([{:a, 1}])
     assert_receive([{:b, 4}, {:a, 3}])
   end
 
   test "priority" do
-    {:ok, server} = Workex.Server.start([workers: [echo_worker(:worker_id, behaviour: Workex.Behaviour.Priority)]])
-    
-    Workex.Server.push(server, :worker_id, {1, :a})
-    Workex.Server.push(server, :worker_id, {1, :b})
-    Workex.Server.push(server, :worker_id, {2, :c})
-    Workex.Server.push(server, :worker_id, {1, :d})
-    Workex.Server.push(server, :worker_id, {3, :e})
-    
+    {:ok, server} = Workex.Server.start(echo_worker(behaviour: Workex.Behaviour.Priority))
+
+    Workex.Server.push(server, {1, :a})
+    Workex.Server.push(server, {1, :b})
+    Workex.Server.push(server, {2, :c})
+    Workex.Server.push(server, {1, :d})
+    Workex.Server.push(server, {3, :e})
+
     assert_receive([{1, :a}])
     assert_receive([{3, :e}, {2, :c}, {1, :b}, {1, :d}])
   end
-  
+
   defmodule StackOneByOne do
     use Workex.Behaviour.Base
-    
+
     def init, do: []
     def clear([_|t]), do: t
     def clear([]), do: []
     def transform([h|_]), do: h
   end
-  
+
   test "custom behaviour" do
-    {:ok, server} = Workex.Server.start([workers: [echo_worker(:worker_id, behaviour: StackOneByOne)]])
-    
-    Workex.Server.push(server, :worker_id, 1)
-    Workex.Server.push(server, :worker_id, 2)
-    Workex.Server.push(server, :worker_id, 3)
-    
+    {:ok, server} = Workex.Server.start(echo_worker(behaviour: StackOneByOne))
+
+    Workex.Server.push(server, 1)
+    Workex.Server.push(server, 2)
+    Workex.Server.push(server, 3)
+
     assert_receive(1)
     assert_receive(3)
     assert_receive(2)
   end
-  
-  test "supervisor server" do
-    workex = Workex.new([
-      supervisor: [restart: :permanent, shutdown: 5000],
-      workers: [
-        [
-          id: :worker1, 
-          state: self,
-          job: 
-            fn
-              ([:crash], _) -> exit(:normal)
-              (any, pid) -> 
-                send(pid, any)
-                pid
-            end
-        ],
-        echo_worker(:worker2)
-      ]
-    ])
-
-    workex = get_and_handle_message(workex, 2)
-
-    workex = 
-      workex
-      |> Workex.push(:worker2, 1)
-      |> Workex.push(:worker1, :crash)
-    
-    assert_receive([1])
-    workex = get_and_handle_message(workex, 2)
-    
-    Workex.push(workex, :worker1, 1)
-    assert_receive([1])
-  end
 
   test "multiple random" do
-    {:ok, server} = Workex.Server.start([workers: [delay_worker(:worker_id)]])
+    {:ok, server} = Workex.Server.start(delay_worker)
 
     messages = generate_messages
-    Enum.each(messages, fn(msg) -> 
-      Workex.Server.push(server, :worker_id, msg)
+    Enum.each(messages, fn(msg) ->
+      Workex.Server.push(server, msg)
       :timer.sleep(10)
     end)
-    
+
     assert List.flatten(Enum.reverse(flush_messages)) == messages
   end
 
@@ -189,7 +134,7 @@ defmodule WorkexTest do
     assert Workex.Priority.empty?(priority) == false
     assert Workex.Priority.to_list(priority) == [:one]
 
-    priority = 
+    priority =
       priority
       |> Workex.Priority.add(2, :two)
       |> Workex.Priority.add(1, :three)
@@ -215,39 +160,21 @@ defmodule WorkexTest do
   defp exec_throttle(sleep_time) do
     Workex.Throttler.exec_and_measure(fn() ->
       Workex.Throttler.throttle(50, fn() -> :timer.sleep(sleep_time) end)
-    end) |> 
+    end) |>
     elem(0)
   end
 
-  defp seed_random do
-    {a1,a2,a3} = :erlang.now
-    :random.seed(a1,a2,a3)
-  end
-
-  defp generate_messages, do: generate_messages(50 + :random.uniform(50), [])
-  defp generate_messages(0, acc), do: acc
-  defp generate_messages(n, acc), do: generate_messages(n - 1, [:random.uniform(10) | acc])
-  
-  defp get_and_handle_message(workex, cnt) do
-    List.foldl(:lists.seq(1, cnt), workex, fn(_, workex) ->
-      {:workex, msg} = rcv
-      Workex.handle_message(workex, msg)
-    end)
-  end
-
-  defp echo_worker(worker_id, args \\ []) do
-    [id: worker_id, job: fn(msg, pid) -> send(pid, msg); pid end, state: self] ++ args
-  end
-
-  defp delay_worker(worker_id, args \\ []) do
-    [id: worker_id, job: fn(msg, pid) -> send(pid, msg); pid end, state: self, throttle: 30] ++ args
-  end
-  
-  defp rcv do
-    receive do
-      x -> x
-    after 
-      500 -> flunk("no message")
+  defp generate_messages do
+    for _ <- (1..50 + :random.uniform(50)) do
+      :random.uniform(10)
     end
+  end
+
+  defp echo_worker(args \\ []) do
+    [job: fn(msg, pid) -> send(pid, msg); pid end, state: self] ++ args
+  end
+
+  defp delay_worker(args \\ []) do
+    [job: fn(msg, pid) -> send(pid, msg); pid end, state: self, throttle: 30] ++ args
   end
 end

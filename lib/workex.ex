@@ -7,10 +7,11 @@ defmodule Workex do
 
   use ExActor.Tolerant
 
-  defstart start(callback \\ Workex.Callback.Stack, worker_args), gen_server_opts: :runtime
-  defstart start_link(callback \\ Workex.Callback.Stack, worker_args), gen_server_opts: :runtime
+  defstart start(worker_args), gen_server_opts: :runtime
+  defstart start_link(worker_args), gen_server_opts: :runtime
 
-  definit {callback, worker_args} do
+  definit {worker_args} do
+    callback = worker_args[:callback] || Workex.Callback.Stack
     %__MODULE__{
       callback: callback,
       messages: callback.init

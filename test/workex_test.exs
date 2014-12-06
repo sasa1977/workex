@@ -34,7 +34,7 @@ defmodule WorkexTest do
   end
 
   test "stack" do
-    {:ok, server} = Workex.start(Workex.Callback.Stack, echo_worker)
+    {:ok, server} = Workex.start(echo_worker(callback: Workex.Callback.Stack))
 
     Workex.push(server, 1)
     Workex.push(server, 2)
@@ -45,7 +45,7 @@ defmodule WorkexTest do
   end
 
   test "unique" do
-    {:ok, server} = Workex.start(Workex.Callback.Unique, echo_worker)
+    {:ok, server} = Workex.start(echo_worker(callback: Workex.Callback.Unique))
 
     Workex.push(server, {:a, 1})
     Workex.push(server, {:a, 2})
@@ -61,7 +61,7 @@ defmodule WorkexTest do
   end
 
   test "ets unique" do
-    {:ok, server} = Workex.start(Workex.Callback.EtsUnique, echo_worker)
+    {:ok, server} = Workex.start(echo_worker(callback: Workex.Callback.EtsUnique))
 
     Workex.push(server, {:a, 1})
     Workex.push(server, {:a, 2})
@@ -73,7 +73,7 @@ defmodule WorkexTest do
   end
 
   test "priority" do
-    {:ok, server} = Workex.start(Workex.Callback.Priority, echo_worker)
+    {:ok, server} = Workex.start(echo_worker(callback: Workex.Callback.Priority))
 
     Workex.push(server, {1, :a})
     Workex.push(server, {1, :b})
@@ -95,7 +95,7 @@ defmodule WorkexTest do
   end
 
   test "custom callback" do
-    {:ok, server} = Workex.start(StackOneByOne, echo_worker)
+    {:ok, server} = Workex.start(echo_worker(callback: StackOneByOne))
 
     Workex.push(server, 1)
     Workex.push(server, 2)
@@ -107,7 +107,7 @@ defmodule WorkexTest do
   end
 
   test "multiple random" do
-    {:ok, server} = Workex.start(Workex.Callback.Queue, delay_worker)
+    {:ok, server} = Workex.start(delay_worker(callback: Workex.Callback.Queue))
 
     messages = generate_messages
     Enum.each(messages, fn(msg) ->
@@ -166,13 +166,13 @@ defmodule WorkexTest do
     [job: fn(msg, pid) -> send(pid, msg); pid end, state: self] ++ args
   end
 
-  defp delay_worker(args \\ []) do
+  defp delay_worker(args) do
     [job: fn(msg, pid) -> send(pid, msg); pid end, state: self, throttle: 30] ++ args
   end
 
   test "gen_server_opts" do
-    {:ok, server} = Workex.start(Workex.Callback.Queue, echo_worker, name: :foo)
+    {:ok, server} = Workex.start(echo_worker, name: :foo)
     assert server == Process.whereis(:foo)
-    assert {:error, {:already_started, server}} == Workex.start(Workex.Callback.Queue, echo_worker, name: :foo)
+    assert {:error, {:already_started, server}} == Workex.start(echo_worker, name: :foo)
   end
 end

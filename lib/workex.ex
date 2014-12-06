@@ -7,8 +7,8 @@ defmodule Workex do
 
   use ExActor.Tolerant
 
-  defstart start(callback \\ Workex.Callback.Queue, worker_args)
-  defstart start_link(callback \\ Workex.Callback.Queue, worker_args)
+  defstart start(callback \\ Workex.Callback.Stack, worker_args)
+  defstart start_link(callback \\ Workex.Callback.Stack, worker_args)
 
   definit {callback, worker_args} do
     %__MODULE__{

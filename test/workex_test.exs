@@ -22,6 +22,17 @@ defmodule WorkexTest do
     assert_receive([:foo])
   end
 
+  test "default" do
+    {:ok, server} = Workex.start(echo_worker)
+
+    Workex.push(server, 1)
+    Workex.push(server, 2)
+    Workex.push(server, 3)
+
+    assert_receive([1])
+    assert_receive([3,2])
+  end
+
   test "stack" do
     {:ok, server} = Workex.start(Workex.Callback.Stack, echo_worker)
 
@@ -96,7 +107,7 @@ defmodule WorkexTest do
   end
 
   test "multiple random" do
-    {:ok, server} = Workex.start(delay_worker)
+    {:ok, server} = Workex.start(Workex.Callback.Queue, delay_worker)
 
     messages = generate_messages
     Enum.each(messages, fn(msg) ->

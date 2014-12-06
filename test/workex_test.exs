@@ -169,4 +169,10 @@ defmodule WorkexTest do
   defp delay_worker(args \\ []) do
     [job: fn(msg, pid) -> send(pid, msg); pid end, state: self, throttle: 30] ++ args
   end
+
+  test "gen_server_opts" do
+    {:ok, server} = Workex.start(Workex.Callback.Queue, echo_worker, name: :foo)
+    assert server == Process.whereis(:foo)
+    assert {:error, {:already_started, server}} == Workex.start(Workex.Callback.Queue, echo_worker, name: :foo)
+  end
 end

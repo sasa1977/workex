@@ -15,15 +15,31 @@ defmodule WorkexTest do
     end
   end
 
-  test "workex server" do
-    {:ok, server} = Workex.start(echo_worker)
+  defmodule EchoWorker do
+    use Workex
 
-    Workex.push(server, :foo)
-    assert_receive([:foo])
+    def init(pid), do: pid
+
+    def handle(messages, pid) do
+      send(pid, messages)
+      pid
+    end
+  end
+
+  defmodule DelayWorker do
+    use Workex
+
+    def init(pid), do: pid
+
+    def handle(messages, pid) do
+      :timer.sleep(30)
+      send(pid, messages)
+      pid
+    end
   end
 
   test "default" do
-    {:ok, server} = Workex.start(echo_worker)
+    {:ok, server} = Workex.start(EchoWorker, self)
 
     Workex.push(server, 1)
     Workex.push(server, 2)
@@ -34,7 +50,7 @@ defmodule WorkexTest do
   end
 
   test "stack" do
-    {:ok, server} = Workex.start(echo_worker(callback: Workex.Callback.Stack))
+    {:ok, server} = Workex.start(EchoWorker, self, collect: Workex.Callback.Stack)
 
     Workex.push(server, 1)
     Workex.push(server, 2)
@@ -45,7 +61,7 @@ defmodule WorkexTest do
   end
 
   test "unique" do
-    {:ok, server} = Workex.start(echo_worker(callback: Workex.Callback.Unique))
+    {:ok, server} = Workex.start(EchoWorker, self, collect: Workex.Callback.Unique)
 
     Workex.push(server, {:a, 1})
     Workex.push(server, {:a, 2})
@@ -61,7 +77,7 @@ defmodule WorkexTest do
   end
 
   test "ets unique" do
-    {:ok, server} = Workex.start(echo_worker(callback: Workex.Callback.EtsUnique))
+    {:ok, server} = Workex.start(EchoWorker, self, collect: Workex.Callback.EtsUnique)
 
     Workex.push(server, {:a, 1})
     Workex.push(server, {:a, 2})
@@ -73,7 +89,7 @@ defmodule WorkexTest do
   end
 
   test "priority" do
-    {:ok, server} = Workex.start(echo_worker(callback: Workex.Callback.Priority))
+    {:ok, server} = Workex.start(EchoWorker, self, collect: Workex.Callback.Priority)
 
     Workex.push(server, {1, :a})
     Workex.push(server, {1, :b})
@@ -94,8 +110,8 @@ defmodule WorkexTest do
     def transform([h|_]), do: h
   end
 
-  test "custom callback" do
-    {:ok, server} = Workex.start(echo_worker(callback: StackOneByOne))
+  test "custom collect" do
+    {:ok, server} = Workex.start(EchoWorker, self, collect: StackOneByOne)
 
     Workex.push(server, 1)
     Workex.push(server, 2)
@@ -107,7 +123,7 @@ defmodule WorkexTest do
   end
 
   test "multiple random" do
-    {:ok, server} = Workex.start(delay_worker(callback: Workex.Callback.Queue))
+    {:ok, server} = Workex.start(DelayWorker, self, collect: Workex.Callback.Queue)
 
     messages = generate_messages
     Enum.each(messages, fn(msg) ->
@@ -136,43 +152,22 @@ defmodule WorkexTest do
     assert Workex.Priority.to_list(priority) == [:four, :two, :one, :three]
   end
 
-  defmacrop between(x, y, z) do
-    quote do
-      a = unquote(x)
-      a > unquote(y) && a < unquote(z)
-    end
-  end
-
-  test "throttler" do
-    assert between(exec_throttle( 0),  30,  70)
-    assert between(exec_throttle( 30), 30,  70)
-    assert between(exec_throttle(100), 80, 120)
-  end
-
-  defp exec_throttle(sleep_time) do
-    Workex.Throttler.exec_and_measure(fn() ->
-      Workex.Throttler.throttle(50, fn() -> :timer.sleep(sleep_time) end)
-    end) |>
-    elem(0)
-  end
-
   defp generate_messages do
     for _ <- (1..50 + :random.uniform(50)) do
       :random.uniform(10)
     end
   end
 
-  defp echo_worker(args \\ []) do
-    [job: fn(msg, pid) -> send(pid, msg); pid end, state: self] ++ args
-  end
-
-  defp delay_worker(args) do
-    [job: fn(msg, pid) -> send(pid, msg); pid end, state: self, throttle: 30] ++ args
-  end
-
   test "gen_server_opts" do
-    {:ok, server} = Workex.start(echo_worker, name: :foo)
+    {:ok, server} = Workex.start(EchoWorker, self, [], name: :foo)
     assert server == Process.whereis(:foo)
-    assert {:error, {:already_started, server}} == Workex.start(echo_worker, name: :foo)
+    assert {:error, {:already_started, server}} == Workex.start(EchoWorker, self, [], name: :foo)
+
+    Workex.push(:foo, 1)
+    Workex.push(:foo, 2)
+    Workex.push(:foo, 3)
+
+    assert_receive([1])
+    assert_receive([3,2])
   end
 end

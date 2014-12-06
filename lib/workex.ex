@@ -1,5 +1,5 @@
 defmodule Workex do
-  defstruct [:worker_pid, :messages, :callback, :worker_available]
+  defstruct [:worker_pid, :messages, :collect, :worker_available]
   @moduledoc """
     A gen_server based process which can be used to manipulate multiple workers and send
     them messages. See readme for detailed description.
@@ -7,36 +7,44 @@ defmodule Workex do
 
   use ExActor.Tolerant
 
-  defstart start(worker_args), gen_server_opts: :runtime
-  defstart start_link(worker_args), gen_server_opts: :runtime
+  use Behaviour
 
-  definit {worker_args} do
-    callback = worker_args[:callback] || Workex.Callback.Stack
+  @type arg :: any
+  @type worker_state :: any
+  @type message :: any
+
+  defcallback init(arg) :: worker_state
+  defcallback handle(any, worker_state) :: worker_state
+
+  defmacro __using__(_) do
+    quote do
+      @behaviour unquote(__MODULE__)
+    end
+  end
+
+  defstart start(callback, arg, opts \\ []), gen_server_opts: :runtime
+  defstart start_link(callback, arg, opts \\ []), gen_server_opts: :runtime
+
+  definit {callback, arg, opts} do
+    collect = opts[:collect] || Workex.Callback.Stack
     %__MODULE__{
-      callback: callback,
-      messages: callback.init
+      collect: collect,
+      messages: collect.init
     }
-    |> start_worker(Keyword.take(worker_args, [:job, :state]) |> adjust_job(worker_args[:throttle]))
+    |> start_worker(callback, arg)
     |> initial_state
   end
 
-  defp adjust_job(worker_args, nil), do: worker_args
-  defp adjust_job(worker_args, throttle_time) do
-    Keyword.put(worker_args, :job, fn(messages, state) ->
-      Workex.Throttler.throttle(throttle_time, fn() -> worker_args[:job].(messages, state) end)
-    end)
-  end
-
-  defp start_worker(state, worker_args) do
-    {:ok, worker_pid} = Workex.Worker.start_link([queue_pid: self] ++ worker_args)
+  defp start_worker(state, callback, arg) do
+    {:ok, worker_pid} = Workex.Worker.start_link(self, callback, arg)
     %__MODULE__{state | worker_pid: worker_pid, worker_available: true}
   end
 
 
   defcast push(message),
-    state: %__MODULE__{callback: callback, messages: messages} = state
+    state: %__MODULE__{collect: collect, messages: messages} = state
   do
-    %__MODULE__{state | messages: callback.add(messages, message)}
+    %__MODULE__{state | messages: collect.add(messages, message)}
     |> maybe_notify_worker
     |> new_state
   end
@@ -54,16 +62,16 @@ defmodule Workex do
   defp maybe_notify_worker(state), do: state
 
 
-  defp empty?(%__MODULE__{callback: callback, messages: messages}) do
-    callback.empty?(messages)
+  defp empty?(%__MODULE__{collect: collect, messages: messages}) do
+    collect.empty?(messages)
   end
 
-  defp clear_messages(%__MODULE__{messages: messages, callback: callback} = state) do
-    %__MODULE__{state | messages: callback.clear(messages)}
+  defp clear_messages(%__MODULE__{messages: messages, collect: collect} = state) do
+    %__MODULE__{state | messages: collect.clear(messages)}
   end
 
-  defp transform_messages(%__MODULE__{callback: callback, messages: messages}) do
-    callback.transform(messages)
+  defp transform_messages(%__MODULE__{collect: collect, messages: messages}) do
+    collect.transform(messages)
   end
 
 

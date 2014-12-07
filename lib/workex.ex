@@ -28,16 +28,18 @@ defmodule Workex do
   defstart start_link(callback, arg, opts \\ []), gen_server_opts: :runtime
 
   definit {callback, arg, opts} do
-    %__MODULE__{messages: opts[:aggregate] || %Workex.Stack{}}
-    |> start_worker(callback, arg)
-    |> initial_state
+    Process.flag(:trap_exit, true)
+    case (Workex.Worker.start_link(self, callback, arg)) do
+      {:ok, worker_pid} ->
+        %__MODULE__{
+          messages: opts[:aggregate] || %Workex.Stack{},
+          worker_pid: worker_pid,
+          worker_available: true
+        }
+        |> initial_state
+      {:error, reason} -> {:stop, reason}
+    end
   end
-
-  defp start_worker(state, callback, arg) do
-    {:ok, worker_pid} = Workex.Worker.start_link(self, callback, arg)
-    %__MODULE__{state | worker_pid: worker_pid, worker_available: true}
-  end
-
 
   defcast push(message),
     state: %__MODULE__{messages: messages} = state
@@ -67,6 +69,10 @@ defmodule Workex do
     %__MODULE__{state | worker_available: true}
     |> maybe_notify_worker
     |> new_state
+  end
+
+  defhandleinfo {:EXIT, worker_pid, reason}, state: %__MODULE__{worker_pid: worker_pid} do
+    stop_server(reason)
   end
 
   defhandleinfo _, do: noreply

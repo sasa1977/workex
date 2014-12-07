@@ -4,28 +4,30 @@ defmodule Workex.Worker do
   defstruct [:queue_pid, :callback, :state]
 
   defstart start(queue_pid, callback, arg)
-  defstart start_link(queue_pid, callback, arg) do
-    %__MODULE__{
-      queue_pid: queue_pid,
-      callback: callback,
-      state: callback.init(arg)
-    }
-    |> initial_state
+  defstart start_link(queue_pid, callback, arg)
+
+  definit {queue_pid, callback, arg} do
+    case callback.init(arg) do
+      {:stop, reason} -> {:stop, reason}
+      {:ok, state} ->
+        %__MODULE__{
+          queue_pid: queue_pid,
+          callback: callback,
+          state: state
+        }
+        |> initial_state
+    end
   end
 
 
-  defcast process(messages), state: worker do
-    worker
-    |> exec_job(messages)
-    |> new_state
-  end
-
-  def exec_job(
-    %__MODULE__{queue_pid: queue_pid, callback: callback, state: state} = worker,
-    messages
-  ) do
-      new_state = callback.handle(messages, state)
-      send(queue_pid, {:workex, :worker_available})
-      %__MODULE__{worker | state: new_state}
+  defcast process(messages),
+    state: %__MODULE__{queue_pid: queue_pid, callback: callback, state: state} = worker
+  do
+    case callback.handle(messages, state) do
+      {:ok, new_state} ->
+        send(queue_pid, {:workex, :worker_available})
+        new_state(%__MODULE__{worker | state: new_state})
+      {:stop, reason} -> {:stop, reason, state}
+    end
   end
 end

@@ -18,11 +18,20 @@ defmodule WorkexTest do
   defmodule EchoWorker do
     use Workex
 
-    def init(pid), do: pid
+    def init({:stop, reason}), do: {:stop, reason}
+    def init(pid), do: {:ok, pid}
+
+    def handle([{:stop, reason}], _) do
+      {:stop, reason}
+    end
+
+    def handle([{:raise, error}], _) do
+      :erlang.error(error)
+    end
 
     def handle(messages, pid) do
       send(pid, messages)
-      pid
+      {:ok, pid}
     end
   end
 
@@ -106,12 +115,6 @@ defmodule WorkexTest do
     assert_receive(2)
   end
 
-  defp generate_messages do
-    for _ <- (1..50 + :random.uniform(50)) do
-      :random.uniform(10)
-    end
-  end
-
   test "gen_server_opts" do
     {:ok, server} = Workex.start(EchoWorker, self, [], name: :foo)
     assert server == Process.whereis(:foo)
@@ -129,24 +132,54 @@ defmodule WorkexTest do
   defmodule DelayWorker do
     use Workex
 
-    def init(pid), do: pid
+    def init(pid), do: {:ok, pid}
 
     def handle(messages, pid) do
-      :timer.sleep(30)
+      :timer.sleep(3)
       send(pid, messages)
-      pid
+      {:ok, pid}
     end
   end
 
   test "multiple random" do
     {:ok, server} = Workex.start(DelayWorker, self, aggregate: %Workex.Queue{})
 
-    messages = generate_messages
-    Enum.each(messages, fn(msg) ->
+    messages = for i <- (1..1000) do
+      {i, :random.uniform(10)}
+    end
+
+    Enum.each(messages, fn({i, msg}) ->
+      if rem(i, 100) == 0, do: :timer.sleep(10)
       Workex.push(server, msg)
-      :timer.sleep(10)
     end)
 
-    assert List.flatten(Enum.reverse(flush_messages)) == messages
+    assert List.flatten(Enum.reverse(flush_messages)) == Enum.map(messages, &elem(&1, 1))
+  end
+
+
+  test "stop worker" do
+    assert {:error, :stop_reason} == Workex.start(EchoWorker, {:stop, :stop_reason})
+
+    Process.flag(:trap_exit, true)
+    try do
+      Logger.remove_backend(:console)
+      {:ok, server} = Workex.start_link(EchoWorker, self, [])
+      Workex.push(server, {:stop, :stop_reason})
+      assert_receive({:EXIT, ^server, :stop_reason})
+    after
+      Process.flag(:trap_exit, false)
+    end
+  end
+
+  test "error propagation" do
+    Process.flag(:trap_exit, true)
+    try do
+      Logger.remove_backend(:console)
+      {:ok, server} = Workex.start_link(EchoWorker, self)
+      Workex.push(server, {:raise, "an error"})
+      assert_receive({:EXIT, ^server, {"an error", _}})
+    after
+      Process.flag(:trap_exit, false)
+    end
   end
 end

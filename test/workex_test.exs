@@ -51,12 +51,24 @@ defmodule WorkexTest do
     assert_receive([3,2])
   end
 
-  test "sync default" do
+  test "ack" do
     {:ok, server} = Workex.start_link(EchoWorker, self)
 
     assert :ok == Workex.push_ack(server, 1)
     assert :ok == Workex.push_ack(server, 2)
     assert :ok == Workex.push_ack(server, 3)
+
+    assert_receive([1])
+    assert_receive([2])
+    assert_receive([3])
+  end
+
+  test "block" do
+    {:ok, server} = Workex.start_link(EchoWorker, self)
+
+    assert :ok == Workex.push_block(server, 1)
+    assert :ok == Workex.push_block(server, 2)
+    assert :ok == Workex.push_block(server, 3)
 
     assert_receive([1])
     assert_receive([2])

@@ -1,5 +1,12 @@
 defmodule Workex do
-  defstruct [:worker_pid, :aggregate, :worker_available, :max_size]
+  defstruct [
+    :worker_pid,
+    :aggregate,
+    :worker_available,
+    :max_size,
+    pending_responses: HashSet.new,
+    processing_responses: HashSet.new
+  ]
   @moduledoc """
     A gen_server based process which can be used to manipulate multiple workers and send
     them messages. See readme for detailed description.
@@ -42,6 +49,12 @@ defmodule Workex do
     end
   end
 
+  defcast push(message), state: state do
+    {_, state} = add_and_notify(state, message)
+    new_state(state)
+  end
+
+
   def push_ack(server, message, timeout \\ :timer.seconds(5)) do
     GenServer.call(server, {:push_ack, message}, timeout)
   end
@@ -51,14 +64,23 @@ defmodule Workex do
     set_and_reply(state, response)
   end
 
-  defcast push(message), state: state do
-    {_, state} = add_and_notify(state, message)
-    new_state(state)
+
+  def push_block(server, message, timeout \\ :timer.seconds(5)) do
+    GenServer.call(server, {:push_block, message}, timeout)
+  end
+
+  defhandlecall push_block(message), state: state, from: from do
+    {response, state} = add_and_notify(state, message, from)
+    case response do
+      :ok -> new_state(state)
+      _ -> set_and_reply(state, response)
+    end
   end
 
   defp add_and_notify(
     %__MODULE__{aggregate: aggregate, max_size: max_size, worker_available: worker_available} = state,
-    message
+    message,
+    from \\ nil
   ) do
     if (not worker_available) and Aggregate.size(aggregate) == max_size do
       {{:error, :max_capacity}, state}
@@ -67,6 +89,7 @@ defmodule Workex do
         {:ok, new_aggregate} ->
           {:ok,
             %__MODULE__{state | aggregate: new_aggregate}
+            |> add_pending_response(from)
             |> maybe_notify_worker
           }
         error ->
@@ -75,14 +98,29 @@ defmodule Workex do
     end
   end
 
+  defp add_pending_response(state, nil), do: state
+  defp add_pending_response(%__MODULE__{pending_responses: pending_responses} = state, from) do
+    %__MODULE__{state | pending_responses: HashSet.put(pending_responses, from)}
+  end
+
 
   defp maybe_notify_worker(
-    %__MODULE__{worker_available: true, worker_pid: worker_pid, aggregate: aggregate} = state
+    %__MODULE__{
+      worker_available: true,
+      worker_pid: worker_pid,
+      aggregate: aggregate,
+      pending_responses: pending_responses
+    } = state
   ) do
     unless Aggregate.size(aggregate) == 0 do
       {payload, aggregate} = Aggregate.value(aggregate)
       Workex.Worker.process(worker_pid, payload)
-      %__MODULE__{state | worker_available: false, aggregate: aggregate}
+      %__MODULE__{state |
+        worker_available: false,
+        aggregate: aggregate,
+        processing_responses: pending_responses,
+        pending_responses: HashSet.new
+      }
     else
       state
     end
@@ -93,9 +131,16 @@ defmodule Workex do
 
   defhandleinfo {:workex, :worker_available}, state: state do
     %__MODULE__{state | worker_available: true}
+    |> notify_pending
     |> maybe_notify_worker
     |> new_state
   end
+
+  defp notify_pending(%__MODULE__{processing_responses: processing_responses} = state) do
+    Enum.each(processing_responses, &GenServer.reply(&1, :ok))
+    %__MODULE__{state | processing_responses: HashSet.new}
+  end
+
 
   defhandleinfo {:EXIT, worker_pid, reason}, state: %__MODULE__{worker_pid: worker_pid} do
     stop_server(reason)

@@ -41,7 +41,7 @@ defmodule WorkexTest do
   end
 
   test "default" do
-    {:ok, server} = Workex.start(EchoWorker, self)
+    {:ok, server} = Workex.start_link(EchoWorker, self)
 
     Workex.push(server, 1)
     Workex.push(server, 2)
@@ -52,7 +52,7 @@ defmodule WorkexTest do
   end
 
   test "sync default" do
-    {:ok, server} = Workex.start(EchoWorker, self)
+    {:ok, server} = Workex.start_link(EchoWorker, self)
 
     assert :ok == Workex.push_ack(server, 1)
     assert :ok == Workex.push_ack(server, 2)
@@ -64,7 +64,7 @@ defmodule WorkexTest do
   end
 
   test "shedding" do
-    {:ok, server} = Workex.start(EchoWorker, self, max_size: 1)
+    {:ok, server} = Workex.start_link(EchoWorker, self, max_size: 1)
 
     assert :ok == Workex.push_ack(server, {:delay, 100, 1})
     assert :ok == Workex.push_ack(server, 2)
@@ -77,7 +77,7 @@ defmodule WorkexTest do
   end
 
   test "stack" do
-    {:ok, server} = Workex.start(EchoWorker, self, aggregate: %Workex.Stack{})
+    {:ok, server} = Workex.start_link(EchoWorker, self, aggregate: %Workex.Stack{})
 
     Workex.push(server, 1)
     Workex.push(server, 2)
@@ -88,7 +88,7 @@ defmodule WorkexTest do
   end
 
   test "queue" do
-    {:ok, server} = Workex.start(EchoWorker, self, aggregate: %Workex.Queue{})
+    {:ok, server} = Workex.start_link(EchoWorker, self, aggregate: %Workex.Queue{})
 
     Workex.push(server, 1)
     Workex.push(server, 2)
@@ -99,7 +99,7 @@ defmodule WorkexTest do
   end
 
   test "dict" do
-    {:ok, server} = Workex.start(EchoWorker, self, aggregate: %Workex.Dict{})
+    {:ok, server} = Workex.start_link(EchoWorker, self, aggregate: %Workex.Dict{})
 
     Workex.push(server, {:a, 1})
     Workex.push(server, {:a, 2})
@@ -133,7 +133,7 @@ defmodule WorkexTest do
   end
 
   test "custom collect" do
-    {:ok, server} = Workex.start(EchoWorker, self, aggregate: %StackOneByOne{})
+    {:ok, server} = Workex.start_link(EchoWorker, self, aggregate: %StackOneByOne{})
 
     Workex.push(server, 1)
     Workex.push(server, 2)
@@ -145,9 +145,9 @@ defmodule WorkexTest do
   end
 
   test "gen_server_opts" do
-    {:ok, server} = Workex.start(EchoWorker, self, [], name: :foo)
+    {:ok, server} = Workex.start_link(EchoWorker, self, [], name: :foo)
     assert server == Process.whereis(:foo)
-    assert {:error, {:already_started, server}} == Workex.start(EchoWorker, self, [], name: :foo)
+    assert {:error, {:already_started, server}} == Workex.start_link(EchoWorker, self, [], name: :foo)
 
     Workex.push(:foo, 1)
     Workex.push(:foo, 2)
@@ -170,8 +170,8 @@ defmodule WorkexTest do
     end
   end
 
-  test "multiple random" do
-    {:ok, server} = Workex.start(DelayWorker, self, aggregate: %Workex.Queue{})
+  test "smoke test" do
+    {:ok, server} = Workex.start_link(DelayWorker, self, aggregate: %Workex.Queue{})
 
     messages = for i <- (1..1000) do
       {i, :random.uniform(10)}

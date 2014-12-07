@@ -1,5 +1,5 @@
 defmodule Workex do
-  defstruct [:worker_pid, :messages, :worker_available, :max_size]
+  defstruct [:worker_pid, :aggregate, :worker_available, :max_size]
   @moduledoc """
     A gen_server based process which can be used to manipulate multiple workers and send
     them messages. See readme for detailed description.
@@ -32,7 +32,7 @@ defmodule Workex do
     case (Workex.Worker.start_link(self, callback, arg)) do
       {:ok, worker_pid} ->
         %__MODULE__{
-          messages: opts[:aggregate] || %Workex.Stack{},
+          aggregate: opts[:aggregate] || %Workex.Stack{},
           worker_pid: worker_pid,
           max_size: opts[:max_size] || :unbound,
           worker_available: true
@@ -57,16 +57,16 @@ defmodule Workex do
   end
 
   defp add_and_notify(
-    %__MODULE__{messages: messages, max_size: max_size, worker_available: worker_available} = state,
+    %__MODULE__{aggregate: aggregate, max_size: max_size, worker_available: worker_available} = state,
     message
   ) do
-    if (not worker_available) and Aggregate.size(messages) == max_size do
+    if (not worker_available) and Aggregate.size(aggregate) == max_size do
       {{:error, :max_capacity}, state}
     else
-      case Aggregate.add(messages, message) do
+      case Aggregate.add(aggregate, message) do
         {:ok, new_aggregate} ->
           {:ok,
-            %__MODULE__{state | messages: new_aggregate}
+            %__MODULE__{state | aggregate: new_aggregate}
             |> maybe_notify_worker
           }
         error ->
@@ -77,12 +77,12 @@ defmodule Workex do
 
 
   defp maybe_notify_worker(
-    %__MODULE__{worker_available: true, worker_pid: worker_pid, messages: messages} = state
+    %__MODULE__{worker_available: true, worker_pid: worker_pid, aggregate: aggregate} = state
   ) do
-    unless Aggregate.size(messages) == 0 do
-      {payload, messages} = Aggregate.value(messages)
+    unless Aggregate.size(aggregate) == 0 do
+      {payload, aggregate} = Aggregate.value(aggregate)
       Workex.Worker.process(worker_pid, payload)
-      %__MODULE__{state | worker_available: false, messages: messages}
+      %__MODULE__{state | worker_available: false, aggregate: aggregate}
     else
       state
     end

@@ -1,7 +1,7 @@
 defprotocol Workex.Aggregate do
-  def add(data, message)
-  def value(data)
-  def size(data)
+  def add(aggregate, message)
+  def value(aggregate)
+  def size(aggregate)
 end
 
 defmodule Workex.Stack do
@@ -18,9 +18,9 @@ defmodule Workex.Stack do
   def size(%__MODULE__{size: size}), do: size
 
   defimpl Workex.Aggregate do
-    defdelegate add(data, message), to: Workex.Stack
-    defdelegate value(data), to: Workex.Stack
-    defdelegate size(data), to: Workex.Stack
+    defdelegate add(aggregate, message), to: Workex.Stack
+    defdelegate value(aggregate), to: Workex.Stack
+    defdelegate size(aggregate), to: Workex.Stack
   end
 end
 
@@ -39,9 +39,9 @@ defmodule Workex.Queue do
   def size(%__MODULE__{size: size}), do: size
 
   defimpl Workex.Aggregate do
-    defdelegate add(data, message), to: Workex.Queue
-    defdelegate value(data), to: Workex.Queue
-    defdelegate size(data), to: Workex.Queue
+    defdelegate add(aggregate, message), to: Workex.Queue
+    defdelegate value(aggregate), to: Workex.Queue
+    defdelegate size(aggregate), to: Workex.Queue
   end
 end
 
@@ -60,8 +60,8 @@ defmodule Workex.Dict do
   def size(%__MODULE__{items: items}), do: HashDict.size(items)
 
   defimpl Workex.Aggregate do
-    defdelegate add(data, message), to: Workex.Dict
-    defdelegate value(data), to: Workex.Dict
-    defdelegate size(data), to: Workex.Dict
+    defdelegate add(aggregate, message), to: Workex.Dict
+    defdelegate value(aggregate), to: Workex.Dict
+    defdelegate size(aggregate), to: Workex.Dict
   end
 end

@@ -1,206 +1,131 @@
 # Workex
 
-Normally, worker processes in Erlang/Elixir don't have much control over received messages. This is especially true for `gen_server` based processes, where messages are processed one by one.
+By default, consumer processes in Erlang/Elixir don't have much control over received messages. This is especially true for `GenServer` based processes, where messages are processed one by one.
 
-The WorkEx library provides the control over message receiving by splitting the worker in two processes: one which accepts messages, and the other which processes them. This is essentially a middle-man (process) technique.
+The `Workex` library provides the control over message receiving by splitting the consumer in two processes: one which accepts messages, and another process which handles them. This approach can be useful in various scenarios:
 
-The primary use case is the accumulation of received messages, while the worker is processing the current request. This makes it possible to handle all accumulated messages at once, control message accumulation, rearrange pending messages, prioritize, or discard some requests.
+- Sometimes, bulk processing can speed up consuming, and processing of `N` items at once is much faster than `N` times processing of a single item.
+- A maximum queue limit must be set after which the consumer should refuse new request.
+- There is a need to eliminate duplicates. An item that arrives in queue makes the previous item of the same kind obsolete.
+- A consumer should rearrange incoming messages by some priority (e.g. newest first).
 
-## Workex server
 
-Be sure to include a dependency in your `mix.exs`:
+## An example
 
-```elixir
-deps: [{:workex, "~> 0.5.0"}, ...]
-```
-
-This is the simplest usage form, where you start a server which is a wrapper around multiple workers. A worker is a function running in its own process and consuming messages. A message can be any erlang term.
-
-General rules:
-  1. If the receiving worker is idle, it will immediately get the message.
-  2. While the worker is busy, all incoming messages are accumulated. As soon as it becomes idle, it will receive all the new messages.
-  3. Messages are sent as lists, in the order received by the server process.
-  4. Message sending is a cast (async) operation.
-
-Example:
+Let's see a simple demonstration. Suppose we have a function that does long processing of some data:
 
 ```elixir
-{:ok, workex_pid} = Workex.Server.start_link([workers: [
-  [id: :my_worker, job: fn(message, _) -> ... end]
-]])
-
-Workex.Server.push(workex_pid, :my_worker, :msg1)
-Workex.Server.push(workex_pid, :my_worker, :msg2)
-Workex.Server.push(workex_pid, :my_worker, :msg3)
-```
-
-Here, the worker will receive two messages with values `[:msg1]` and then `[:msg2, :msg3]`.
-
-## Process structure
-
-Both the workex server process and the worker processes are implemented as gen_servers. The workers are linked to the workex server, so a crash in one worker kills the entire structure.
-
-It is possible to use a _simple\_one\_for\_one_ supervisor to start and supervise workers:
-
-```elixir
-# using workex supervisor
-{:ok, server} = Workex.Server.start([supervisor: [restart: :permanent, shutdown: 5000], workers: [...]])
-
-# using your own simple_one_for_one
-{:ok, server} = Workex.Server.start([supervisor: pid, workers: [...]])
-```
-
-In the first approach, the workex creates (and links) its own supervisor with the arguments provided. In the second version, you provide a pid of the already created _simple\_one\_for\_one_ supervisor.
-When supervisor is used, worker processes are not linked to the workex server.
-
-Notice that the workex server is not included in the supervision tree: it is up to you to do it. However, the server will be linked to the supervisor of worker processes (if you use one), so in case of its termination, it will also die.
-
-## The worker state
-
-Each worker maintains its own state. The initial state is provided in the worker spec. The current state is received as the second argument of the job function while the function's return value is used as the new state:
-
-```elixir
-{:ok, workex_pid} = Workex.Server.start_link([workers: [
-  [id: :my_worker, state: 0, job: fn(_, cnt) -> cnt + 1 end]
-]])
-```
-
-## Throttling
-
-If desired, you can throttle the worker so it does not processes messages too often:
-
-```elixir
-Workex.Server.start_link([workers: [
-  [id: :my_worker, throttle: 1000, ...]
-]])
-```
-
-The call above ensures that the worker will not be invoked more often than every 1000 ms.
-
-The throttling time incorporates the execution time of the worker. If the worker performs its task in less than 1000 ms, a sleep in its process will be invoked, assuring that it waits for the remaining time. However, if the processing time is larger, no sleep will take place, and if new messages are available, they will be processed immediately. If you want to ensure that worker waits for some fixed amount of time after it has done processing, add a _:timer.sleep_ call in the worker function.
-
-## Message manipulation
-
-By default the worker receives messages as the chronologically sorted list (older messages come first). A couple of alternative implementations are provided.
-
-### Stack
-
-Accumulates messages in the list, newer messages come first:
-
-```elixir
-{:ok, workex_pid} = Workex.Server.start_link([workers: [
-  [id: :my_worker, behaviour: Workex.Behaviour.Stack, job: fn(message, _) -> ... end]
-]])
-
-Workex.Server.push(workex_pid, :my_worker, :msg1)
-Workex.Server.push(workex_pid, :my_worker, :msg2)
-Workex.Server.push(workex_pid, :my_worker, :msg3)
-```
-
-The worker will receive `[:msg1]` and then `[:msg3 ,:msg2]`.
-
-### Unique
-
-Unique assumes that messages are tuples and that the first element of the tuple is the message id. When accumulating messages, the new message overwrites the accumulated older one with the same id. The ordering is not preserved.
-
-```elixir
-{:ok, workex_pid} = Workex.Server.start_link([workers: [
-  [id: :my_worker, behaviour: Workex.Behaviour.Unique, job: fn(message, _) -> ... end]
-]])
-
-Workex.Server.push(workex_pid, :my_worker, {:msg1, :a})
-Workex.Server.push(workex_pid, :my_worker, {:msg2, :b})
-Workex.Server.push(workex_pid, :my_worker, {:msg2, :c})
-Workex.Server.push(workex_pid, :my_worker, {:msg3, :d})
-```
-
-The worker will receive `[{:msg1, :a}]` and then `[{:msg3, :d}, {:msg2, :c}]`
-
-### EtsUnique
-
-Same as Unique, but uses private ets table instead of HashDict.
-
-### Priority
-
-Priority assumes that messages are tuples, and that the first element of the tuple is a number representing message priority. The accumulated messages are sorted by desending priority. If two messages have the same priority, they are sorted by the order received:
-
-```elixir
-{:ok, workex_pid} = Workex.Server.start_link([workers: [
-  [id: :my_worker, behaviour: Workex.Behaviour.Priority, job: fn(message, _) -> ... end]
-]])
-
-Workex.Server.push(server, :my_worker, {1, :a})
-Workex.Server.push(server, :my_worker, {1, :b})
-Workex.Server.push(server, :my_worker, {2, :c})
-Workex.Server.push(server, :my_worker, {1, :d})
-Workex.Server.push(server, :my_worker, {3, :e})
-```
-
-The worker will receive `[{1, :a}]` and then `[{3, :e}, {2, :c}, {1, :b}, {1, :d}]`
-
-### Custom
-
-You can easily implement your own custom behaviour. This one stores messages in the lists, and sends them one by one, newer first.
-
-```elixir
-defmodule StackOneByOne do
-  use Workex.Behaviour.Base
-
-  def init, do: []
-
-  def clear([_|t]), do: t
-  def clear([]), do: []
-
-  def add(messages, message), do: [message | messages]
-  def transform([h|_]), do: h
-
-  def empty?([]), do: true
-  def empty?(_), do: false
+defmodule Processor do
+  def long_op(data) do
+    :timer.sleep(100)
+    IO.inspect data
+    :ok
+  end
 end
 ```
 
-Not all functions must be implemented. The default implementation is inherited from the base behaviour, which is the stack implementation. The compact version could look like this:
+Obviously, this function can run at most 10 times per second. However, the running time is mostly unrelated to the size of the input data. Thus, we can benefit if we do bulking of input messages.
+
+In particular, when a message arrives, the consumer can do following:
+
+1. An idle consumer can immediately consume the message.
+2. A busy consumer can queue the message. When the current processing is done, the consumer will process all queued messages at once.
+
+This allows the consumer to automatically adapt to the incoming load of messages by taking the larger chunks of consumed messages.
+
+Here's how we can do this with `Workex`. First, make sure you have `Workex` set as dependency in `mix.exs`:
 
 ```elixir
-defmodule StackOneByOne do
-  use Workex.Behaviour.Base
+def deps do
+  [{:workex, "~> 0.5.0"}, ...]
+end
 
-  def clear([_|t]), do: t
-  def clear([]), do: []
-  def transform([h|_]), do: h
+def application do
+  [applications: [:workex, ...], ...]
 end
 ```
 
-## Removing the server process
-
-The workex server is an Erlang process. If for some reason you don't want to create this extra process, you can use the Workex module inside your own process.
-
-Create the workex structure in the owner process:
+Now, you can define the consumer as the callback used by the `Workex` behaviour:
 
 ```elixir
-workex = Workex.new(args)   # args follow the same rule as when creating the server
-```
+defmodule Consumer do
+  use Workex
 
-Then push messages:
+  # Interface functions are invoked inside client processes
 
-```elixir
-new_workex = Workex.push(workex, worker_id, message)
-```
+  def start_link do
+    Workex.start_link(__MODULE__, nil)
+  end
 
-Finally, inside the owner process, you must handle the workex messages which will be sent by worker processes:
+  def push(pid, item) do
+    Workex.push(pid, item)
+  end
 
-```elixir
-receive do
-  {:workex, workex_message} ->
-    new_workex = Workex.handle_message(workex, workex_message)
+
+  # Callback functions run in the worker process
+
+  def init(_), do: {:ok, nil}
+
+  def handle(data, state) do
+    Processor.long_op(data)
+    {:ok, state}
+  end
 end
 ```
 
-Notice that calls to _push_ and _handle\_message_ return the modified workex structure which you must incorporate in your owner process state.
-See the implementation of the _Workex.Server_ for full details.
+The producer can now start the Workex process, and push some data:
 
-## Performance considerations
+```elixir
+{:ok, pid} = Consumer.start_link
+for i <- 1..100 do
+  Consumer.push(pid, i)
+  :timer.sleep(10)
+end
 
-1. Each message is passed one extra time (from the workex server to the corresponding worker).
-2. In the default queue implementation, new messages are appended at the top of the list. However, when sending to the worker process, this list of accumulated messages is reversed.
-3. Message accumulation / rearranging takes place in workex server or the owner process of the workex structure.
+[1]                                     # after 100 ms
+[10, 9, 8, 7, 6, 5, 4, 3, 2]            # after 200 ms
+[19, 18, 17, 16, 15, 14, 13, 12, 11]    # after 300 ms
+...
+```
+
+As you can see from the output, the first message is consumed immediately. In the meantime, all subsequent messages are aggregated and handled as soon as the consumer becomes idle. This allowed us to process 20 items in 300 ms, even though the processor function (`Processor.long_op/1`) takes about 100 ms.
+
+`Workex` is a behaviour that runs two generic processes: the `Workex` powered process, and the internal worker process. The `Workex` process is a facade that accepts incoming items. It is tightly coupled with the worker process. As soon as the worker process is done processing, it notifies the `Workex` process, which may in turn provide new data, if there is some. Otherwise, the consumer is considered to be idle until the next message arrives.
+
+The worker process is a long running process. Callback functions are invoked in this process and can manage some state. This works roughly like with `GenServer`. The `init/1` callback returns the initial state, while `handle/2` returns the new state. In case of a crash, both worker, and `Workex` process terminate, and the incoming queue is lost. This is analogous to the behaviour of plain BEAM processes.
+
+
+## Message aggregation
+
+As can be seen from the previous example, messages are by default aggregated in the stack. All new messages are placed on top, and the worker receives the reverse list (newer items are first).
+
+There are two other data aggregation strategies provided:
+
+- A `Workex.Queue` reverses the data prior to handing it off to the worker. This preserves the ordering of input messages.
+- A `Workex.Dict` assumes that messages are in form of `{key, value}`. New message overwrites the queued one with the same key. The worker receives an unordered list of `{key, value}` tuples.
+
+To use an alternative aggregation, you can start the server with:
+
+```elixir
+Workex.start_link(MyModule, arg, aggregate: %Workex.Queue{})
+```
+
+You can also implement your own aggregation strategies. This amounts to developing a structure that implements the `Workex.Aggregate` protocol.
+
+
+## Limiting buffer
+
+By default, `Workex` doesn't impose a limit to the message queue size. However, in some cases, you may want to refuse accepting new items after the queue size exceeds some limit. This can be done by providing the `max_size` option:
+
+```elixir
+Workex.start_link(MyModule, arg, max_size: 10)
+```
+
+If we have 10 items queued, all subsequent items will not enter the queue. Of course, once all queued items are passed to the worker server, the queue is emptied and `Workex` process will accept new items.
+
+
+## Synchronous push
+
+`Workex.push/2` is a fire-and-forget operation, which means you have no idea about its outcome. If you need some stronger guarantees, you can use `Workex.push_ack/2` which returns `:ok` if the item is successfully queued, or an error if the item was not queued (for example if the buffer limit has been reached).
+
+There is also the function `Workex.push_block/2` which blocks the client (but not the `Workex` process) until the item has been processed by the worker. This is mostly useful if there are many concurrent producers pushing to the consumer, and you want to apply some stronger back pressure.

@@ -26,18 +26,6 @@ defmodule WorkexTest do
     end
   end
 
-  defmodule DelayWorker do
-    use Workex
-
-    def init(pid), do: pid
-
-    def handle(messages, pid) do
-      :timer.sleep(30)
-      send(pid, messages)
-      pid
-    end
-  end
-
   test "default" do
     {:ok, server} = Workex.start(EchoWorker, self)
 
@@ -118,18 +106,6 @@ defmodule WorkexTest do
     assert_receive(2)
   end
 
-  test "multiple random" do
-    {:ok, server} = Workex.start(DelayWorker, self, aggregate: %Workex.Queue{})
-
-    messages = generate_messages
-    Enum.each(messages, fn(msg) ->
-      Workex.push(server, msg)
-      :timer.sleep(10)
-    end)
-
-    assert List.flatten(Enum.reverse(flush_messages)) == messages
-  end
-
   defp generate_messages do
     for _ <- (1..50 + :random.uniform(50)) do
       :random.uniform(10)
@@ -147,5 +123,30 @@ defmodule WorkexTest do
 
     assert_receive([1])
     assert_receive([3,2])
+  end
+
+
+  defmodule DelayWorker do
+    use Workex
+
+    def init(pid), do: pid
+
+    def handle(messages, pid) do
+      :timer.sleep(30)
+      send(pid, messages)
+      pid
+    end
+  end
+
+  test "multiple random" do
+    {:ok, server} = Workex.start(DelayWorker, self, aggregate: %Workex.Queue{})
+
+    messages = generate_messages
+    Enum.each(messages, fn(msg) ->
+      Workex.push(server, msg)
+      :timer.sleep(10)
+    end)
+
+    assert List.flatten(Enum.reverse(flush_messages)) == messages
   end
 end

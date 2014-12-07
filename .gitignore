@@ -2,3 +2,5 @@
 /deps
 erl_crash.dump
 /_build/
+/docs/
+/cover/

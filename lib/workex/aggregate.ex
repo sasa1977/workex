@@ -1,6 +1,14 @@
 defprotocol Workex.Aggregate do
+  @doc "Value that contains aggregated messages which are passed to the worker process."
+  @type value :: any
+
+  @spec add(t, any) :: t
   def add(aggregate, message)
+
+  @spec value(t) :: value
   def value(aggregate)
+
+  @spec size(t) :: non_neg_integer
   def size(aggregate)
 end
 

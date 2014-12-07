@@ -16,12 +16,11 @@ defmodule Workex do
 
   use Behaviour
 
-  @type arg :: any
-  @type worker_state :: any
-  @type message :: any
+  @typep worker_state :: any
+  @type options :: [{:aggregate, module} | {:max_size, pos_integer}]
 
-  defcallback init(arg) :: worker_state
-  defcallback handle(any, worker_state) :: worker_state
+  defcallback init(any) :: {:ok, worker_state} | {:stop, reason :: any}
+  defcallback handle(Workex.Aggregate.value, worker_state) :: {:ok, worker_state} | {:stop, reason :: any}
 
   defmacro __using__(_) do
     quote do
@@ -31,7 +30,10 @@ defmodule Workex do
 
   alias Workex.Aggregate
 
+  @spec start(module, arg :: any, options, GenServer.options) :: GenServer.on_start
   defstart start(callback, arg, opts \\ []), gen_server_opts: :runtime
+
+  @spec start_link(module, arg :: any, options, GenServer.options) :: GenServer.on_start
   defstart start_link(callback, arg, opts \\ []), gen_server_opts: :runtime
 
   definit {callback, arg, opts} do
@@ -49,13 +51,15 @@ defmodule Workex do
     end
   end
 
+  @spec push(GenServer.server, message :: any) :: :ok
   defcast push(message), state: state do
     {_, state} = add_and_notify(state, message)
     new_state(state)
   end
 
 
-  def push_ack(server, message, timeout \\ :timer.seconds(5)) do
+  @spec push_ack(GenServer.server, any, non_neg_integer | :infinity) :: :ok | {:error, reason :: any}
+  def push_ack(server, message, timeout \\ 5000) do
     GenServer.call(server, {:push_ack, message}, timeout)
   end
 
@@ -65,7 +69,8 @@ defmodule Workex do
   end
 
 
-  def push_block(server, message, timeout \\ :timer.seconds(5)) do
+  @spec push_block(GenServer.server, any, non_neg_integer | :infinity) :: :ok | {:error, reason :: any}
+  def push_block(server, message, timeout \\ 5000) do
     GenServer.call(server, {:push_block, message}, timeout)
   end
 

@@ -23,6 +23,9 @@ defmodule Workex.Mixfile do
   end
 
   defp deps do
-    [{:exactor, "~> 2.0.0"}]
+    [
+      {:exactor, "~> 2.0.0"},
+      {:ex_doc, "~> 0.6.0", only: :docs}
+    ]
   end
 end

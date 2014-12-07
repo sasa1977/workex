@@ -1,4 +1,5 @@
 defmodule Workex.Worker do
+  @moduledoc false
   use ExActor.Tolerant
 
   defstruct [:queue_pid, :callback, :state]

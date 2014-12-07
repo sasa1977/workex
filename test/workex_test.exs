@@ -50,7 +50,7 @@ defmodule WorkexTest do
   end
 
   test "stack" do
-    {:ok, server} = Workex.start(EchoWorker, self, collect: Workex.Callback.Stack)
+    {:ok, server} = Workex.start(EchoWorker, self, aggregate: %Workex.Stack{})
 
     Workex.push(server, 1)
     Workex.push(server, 2)
@@ -60,8 +60,19 @@ defmodule WorkexTest do
     assert_receive([3,2])
   end
 
+  test "queue" do
+    {:ok, server} = Workex.start(EchoWorker, self, aggregate: %Workex.Queue{})
+
+    Workex.push(server, 1)
+    Workex.push(server, 2)
+    Workex.push(server, 3)
+
+    assert_receive([1])
+    assert_receive([2, 3])
+  end
+
   test "unique" do
-    {:ok, server} = Workex.start(EchoWorker, self, collect: Workex.Callback.Unique)
+    {:ok, server} = Workex.start(EchoWorker, self, aggregate: %Workex.Dict{})
 
     Workex.push(server, {:a, 1})
     Workex.push(server, {:a, 2})
@@ -76,42 +87,27 @@ defmodule WorkexTest do
     assert message[:b] == 4
   end
 
-  test "ets unique" do
-    {:ok, server} = Workex.start(EchoWorker, self, collect: Workex.Callback.EtsUnique)
-
-    Workex.push(server, {:a, 1})
-    Workex.push(server, {:a, 2})
-    Workex.push(server, {:a, 3})
-    Workex.push(server, {:b, 4})
-
-    assert_receive([{:a, 1}])
-    assert_receive([{:b, 4}, {:a, 3}])
-  end
-
-  test "priority" do
-    {:ok, server} = Workex.start(EchoWorker, self, collect: Workex.Callback.Priority)
-
-    Workex.push(server, {1, :a})
-    Workex.push(server, {1, :b})
-    Workex.push(server, {2, :c})
-    Workex.push(server, {1, :d})
-    Workex.push(server, {3, :e})
-
-    assert_receive([{1, :a}])
-    assert_receive([{3, :e}, {2, :c}, {1, :b}, {1, :d}])
-  end
-
   defmodule StackOneByOne do
-    use Workex.Callback
+    defstruct items: []
 
-    def init, do: []
-    def clear([_|t]), do: t
-    def clear([]), do: []
-    def transform([h|_]), do: h
+    def add(%__MODULE__{items: items} = stack, message) do
+      %__MODULE__{stack | items: [message | items]}
+    end
+
+    def value(%__MODULE__{items: [head | rest]} = stack), do: {head, %__MODULE__{stack | items: rest}}
+
+    def empty?(%__MODULE__{items: []}), do: true
+    def empty?(%__MODULE__{items: _}), do: false
+
+    defimpl Workex.Aggregate do
+      defdelegate add(data, message), to: StackOneByOne
+      defdelegate value(data), to: StackOneByOne
+      defdelegate empty?(data), to: StackOneByOne
+    end
   end
 
   test "custom collect" do
-    {:ok, server} = Workex.start(EchoWorker, self, collect: StackOneByOne)
+    {:ok, server} = Workex.start(EchoWorker, self, aggregate: %StackOneByOne{})
 
     Workex.push(server, 1)
     Workex.push(server, 2)
@@ -123,7 +119,7 @@ defmodule WorkexTest do
   end
 
   test "multiple random" do
-    {:ok, server} = Workex.start(DelayWorker, self, collect: Workex.Callback.Queue)
+    {:ok, server} = Workex.start(DelayWorker, self, aggregate: %Workex.Queue{})
 
     messages = generate_messages
     Enum.each(messages, fn(msg) ->
@@ -132,24 +128,6 @@ defmodule WorkexTest do
     end)
 
     assert List.flatten(Enum.reverse(flush_messages)) == messages
-  end
-
-  test "priority structure" do
-    priority = Workex.Priority.new
-    assert Workex.Priority.empty?(priority) == true
-
-    priority = Workex.Priority.add(priority, 1, :one)
-    assert Workex.Priority.empty?(priority) == false
-    assert Workex.Priority.to_list(priority) == [:one]
-
-    priority =
-      priority
-      |> Workex.Priority.add(2, :two)
-      |> Workex.Priority.add(1, :three)
-      |> Workex.Priority.add(3, :four)
-
-    assert Workex.Priority.empty?(priority) == false
-    assert Workex.Priority.to_list(priority) == [:four, :two, :one, :three]
   end
 
   defp generate_messages do

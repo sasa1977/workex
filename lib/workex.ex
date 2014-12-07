@@ -1,5 +1,5 @@
 defmodule Workex do
-  defstruct [:worker_pid, :messages, :collect, :worker_available]
+  defstruct [:worker_pid, :messages, :worker_available]
   @moduledoc """
     A gen_server based process which can be used to manipulate multiple workers and send
     them messages. See readme for detailed description.
@@ -22,15 +22,13 @@ defmodule Workex do
     end
   end
 
+  alias Workex.Aggregate
+
   defstart start(callback, arg, opts \\ []), gen_server_opts: :runtime
   defstart start_link(callback, arg, opts \\ []), gen_server_opts: :runtime
 
   definit {callback, arg, opts} do
-    collect = opts[:collect] || Workex.Callback.Stack
-    %__MODULE__{
-      collect: collect,
-      messages: collect.init
-    }
+    %__MODULE__{messages: opts[:aggregate] || %Workex.Stack{}}
     |> start_worker(callback, arg)
     |> initial_state
   end
@@ -42,37 +40,27 @@ defmodule Workex do
 
 
   defcast push(message),
-    state: %__MODULE__{collect: collect, messages: messages} = state
+    state: %__MODULE__{messages: messages} = state
   do
-    %__MODULE__{state | messages: collect.add(messages, message)}
+    %__MODULE__{state | messages: Aggregate.add(messages, message)}
     |> maybe_notify_worker
     |> new_state
   end
 
 
-  defp maybe_notify_worker(%__MODULE__{worker_available: true, worker_pid: worker_pid} = state) do
-    unless empty?(state) do
-      Workex.Worker.process(worker_pid, transform_messages(state))
-      clear_messages(%__MODULE__{state | worker_available: false})
+  defp maybe_notify_worker(
+    %__MODULE__{worker_available: true, worker_pid: worker_pid, messages: messages} = state
+  ) do
+    unless Aggregate.empty?(messages) do
+      {payload, messages} = Aggregate.value(messages)
+      Workex.Worker.process(worker_pid, payload)
+      %__MODULE__{state | worker_available: false, messages: messages}
     else
       state
     end
   end
 
   defp maybe_notify_worker(state), do: state
-
-
-  defp empty?(%__MODULE__{collect: collect, messages: messages}) do
-    collect.empty?(messages)
-  end
-
-  defp clear_messages(%__MODULE__{messages: messages, collect: collect} = state) do
-    %__MODULE__{state | messages: collect.clear(messages)}
-  end
-
-  defp transform_messages(%__MODULE__{collect: collect, messages: messages}) do
-    collect.transform(messages)
-  end
 
 
   defhandleinfo {:workex, :worker_available}, state: state do

@@ -1,5 +1,5 @@
 defmodule Workex do
-  defstruct [:worker_pid, :messages, :worker_available]
+  defstruct [:worker_pid, :messages, :worker_available, :max_size]
   @moduledoc """
     A gen_server based process which can be used to manipulate multiple workers and send
     them messages. See readme for detailed description.
@@ -34,6 +34,7 @@ defmodule Workex do
         %__MODULE__{
           messages: opts[:aggregate] || %Workex.Stack{},
           worker_pid: worker_pid,
+          max_size: opts[:max_size] || :unbound,
           worker_available: true
         }
         |> initial_state
@@ -41,19 +42,44 @@ defmodule Workex do
     end
   end
 
-  defcast push(message),
-    state: %__MODULE__{messages: messages} = state
-  do
-    %__MODULE__{state | messages: Aggregate.add(messages, message)}
-    |> maybe_notify_worker
-    |> new_state
+  def push_ack(server, message, timeout \\ :timer.seconds(5)) do
+    GenServer.call(server, {:push_ack, message}, timeout)
+  end
+
+  defhandlecall push_ack(message), state: state do
+    {response, state} = add_and_notify(state, message)
+    set_and_reply(state, response)
+  end
+
+  defcast push(message), state: state do
+    {_, state} = add_and_notify(state, message)
+    new_state(state)
+  end
+
+  defp add_and_notify(
+    %__MODULE__{messages: messages, max_size: max_size, worker_available: worker_available} = state,
+    message
+  ) do
+    if (not worker_available) and Aggregate.size(messages) == max_size do
+      {{:error, :max_capacity}, state}
+    else
+      case Aggregate.add(messages, message) do
+        {:ok, new_aggregate} ->
+          {:ok,
+            %__MODULE__{state | messages: new_aggregate}
+            |> maybe_notify_worker
+          }
+        error ->
+          {error, state}
+      end
+    end
   end
 
 
   defp maybe_notify_worker(
     %__MODULE__{worker_available: true, worker_pid: worker_pid, messages: messages} = state
   ) do
-    unless Aggregate.empty?(messages) do
+    unless Aggregate.size(messages) == 0 do
       {payload, messages} = Aggregate.value(messages)
       Workex.Worker.process(worker_pid, payload)
       %__MODULE__{state | worker_available: false, messages: messages}

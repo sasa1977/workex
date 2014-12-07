@@ -29,6 +29,11 @@ defmodule WorkexTest do
       :erlang.error(error)
     end
 
+    def handle([{:delay, delay, message}], pid) do
+      :timer.sleep(delay)
+      handle([message], pid)
+    end
+
     def handle(messages, pid) do
       send(pid, messages)
       {:ok, pid}
@@ -44,6 +49,31 @@ defmodule WorkexTest do
 
     assert_receive([1])
     assert_receive([3,2])
+  end
+
+  test "sync default" do
+    {:ok, server} = Workex.start(EchoWorker, self)
+
+    assert :ok == Workex.push_ack(server, 1)
+    assert :ok == Workex.push_ack(server, 2)
+    assert :ok == Workex.push_ack(server, 3)
+
+    assert_receive([1])
+    assert_receive([2])
+    assert_receive([3])
+  end
+
+  test "shedding" do
+    {:ok, server} = Workex.start(EchoWorker, self, max_size: 1)
+
+    assert :ok == Workex.push_ack(server, {:delay, 100, 1})
+    assert :ok == Workex.push_ack(server, 2)
+    assert {:error, :max_capacity} == Workex.push_ack(server, 3)
+
+    assert_receive([1], 500)
+    assert_receive([2])
+    assert :ok == Workex.push_ack(server, 3)
+    assert_receive([3])
   end
 
   test "stack" do
@@ -68,7 +98,7 @@ defmodule WorkexTest do
     assert_receive([2, 3])
   end
 
-  test "unique" do
+  test "dict" do
     {:ok, server} = Workex.start(EchoWorker, self, aggregate: %Workex.Dict{})
 
     Workex.push(server, {:a, 1})
@@ -88,18 +118,17 @@ defmodule WorkexTest do
     defstruct items: []
 
     def add(%__MODULE__{items: items} = stack, message) do
-      %__MODULE__{stack | items: [message | items]}
+      {:ok, %__MODULE__{stack | items: [message | items]}}
     end
 
     def value(%__MODULE__{items: [head | rest]} = stack), do: {head, %__MODULE__{stack | items: rest}}
 
-    def empty?(%__MODULE__{items: []}), do: true
-    def empty?(%__MODULE__{items: _}), do: false
+    def size(%__MODULE__{items: items}), do: length(items)
 
     defimpl Workex.Aggregate do
       defdelegate add(data, message), to: StackOneByOne
       defdelegate value(data), to: StackOneByOne
-      defdelegate empty?(data), to: StackOneByOne
+      defdelegate size(data), to: StackOneByOne
     end
   end
 

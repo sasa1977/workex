@@ -4,6 +4,7 @@ defmodule Workex do
     :aggregate,
     :worker_available,
     :max_size,
+    :replace_oldest,
     pending_responses: HashSet.new,
     processing_responses: HashSet.new
   ]
@@ -17,7 +18,7 @@ defmodule Workex do
   use Behaviour
 
   @typep worker_state :: any
-  @type options :: [{:aggregate, module} | {:max_size, pos_integer}]
+  @type options :: [{:aggregate, module} | {:max_size, pos_integer} | {:replace_oldest, boolean}]
 
   defcallback init(any) :: {:ok, worker_state} | {:stop, reason :: any}
   defcallback handle(Workex.Aggregate.value, worker_state) :: {:ok, worker_state} | {:stop, reason :: any}
@@ -44,6 +45,7 @@ defmodule Workex do
           aggregate: opts[:aggregate] || %Workex.Queue{},
           worker_pid: worker_pid,
           max_size: opts[:max_size] || :unbound,
+          replace_oldest: opts[:replace_oldest] || false,
           worker_available: true
         }
         |> initial_state
@@ -83,23 +85,41 @@ defmodule Workex do
   end
 
   defp add_and_notify(
-    %__MODULE__{aggregate: aggregate, max_size: max_size, worker_available: worker_available} = state,
+    %__MODULE__{
+      aggregate: aggregate,
+      max_size: max_size,
+      worker_available: worker_available,
+      replace_oldest: replace_oldest
+    } = state,
     message,
     from \\ nil
   ) do
     if (not worker_available) and Aggregate.size(aggregate) == max_size do
-      {{:error, :max_capacity}, state}
-    else
-      case Aggregate.add(aggregate, message) do
-        {:ok, new_aggregate} ->
-          {:ok,
-            %__MODULE__{state | aggregate: new_aggregate}
-            |> add_pending_response(from)
-            |> maybe_notify_worker
-          }
-        error ->
-          {error, state}
+      if replace_oldest do
+        aggregate
+        |> Aggregate.remove_oldest
+        |> Aggregate.add(message)
+        |> handle_add(state, from)
+      else
+        {{:error, :max_capacity}, state}
       end
+    else
+      aggregate
+      |> Aggregate.add(message)
+      |> handle_add(state, from)
+    end
+  end
+
+  defp handle_add(add_result, state, from) do
+    case add_result do
+      {:ok, new_aggregate} ->
+        {:ok,
+          %__MODULE__{state | aggregate: new_aggregate}
+          |> add_pending_response(from)
+          |> maybe_notify_worker
+        }
+      error ->
+        {error, state}
     end
   end
 

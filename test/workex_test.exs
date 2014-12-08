@@ -99,6 +99,18 @@ defmodule WorkexTest do
     assert_receive([3,2])
   end
 
+  test "replace oldest in stack" do
+    {:ok, server} = Workex.start_link(EchoWorker, self, aggregate: %Workex.Stack{}, max_size: 5, replace_oldest: true)
+
+    assert :ok == Workex.push_ack(server, {:delay, 100, 1})
+    for i <- 1..10 do
+      assert :ok == Workex.push_ack(server, i)
+    end
+
+    assert_receive([1], 500)
+    assert_receive([10, 9, 8, 7, 6])
+  end
+
   test "queue" do
     {:ok, server} = Workex.start_link(EchoWorker, self, aggregate: %Workex.Queue{})
 
@@ -108,6 +120,18 @@ defmodule WorkexTest do
 
     assert_receive([1])
     assert_receive([2, 3])
+  end
+
+  test "replace oldest in queue" do
+    {:ok, server} = Workex.start_link(EchoWorker, self, aggregate: %Workex.Queue{}, max_size: 5, replace_oldest: true)
+
+    assert :ok == Workex.push_ack(server, {:delay, 100, 1})
+    for i <- 1..10 do
+      assert :ok == Workex.push_ack(server, i)
+    end
+
+    assert_receive([1], 500)
+    assert_receive([6, 7, 8, 9, 10])
   end
 
   test "dict" do
@@ -141,6 +165,7 @@ defmodule WorkexTest do
       defdelegate add(data, message), to: StackOneByOne
       defdelegate value(data), to: StackOneByOne
       defdelegate size(data), to: StackOneByOne
+      def remove_oldest(_), do: raise("not implemented")
     end
   end
 

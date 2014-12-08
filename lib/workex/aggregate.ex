@@ -10,7 +10,11 @@ defprotocol Workex.Aggregate do
 
   @spec size(t) :: non_neg_integer
   def size(aggregate)
+
+  @spec remove_oldest(t) :: t
+  def remove_oldest(aggregate)
 end
+
 
 defmodule Workex.Stack do
   defstruct items: :queue.new, size: 0
@@ -25,10 +29,16 @@ defmodule Workex.Stack do
 
   def size(%__MODULE__{size: size}), do: size
 
+  def remove_oldest(%__MODULE__{items: items, size: size} = stack) do
+    {_, items} = :queue.out_r(items)
+    %__MODULE__{stack | items: items, size: size - 1}
+  end
+
   defimpl Workex.Aggregate do
     defdelegate add(aggregate, message), to: Workex.Stack
     defdelegate value(aggregate), to: Workex.Stack
     defdelegate size(aggregate), to: Workex.Stack
+    defdelegate remove_oldest(aggregate), to: Workex.Stack
   end
 end
 
@@ -46,10 +56,16 @@ defmodule Workex.Queue do
 
   def size(%__MODULE__{size: size}), do: size
 
+  def remove_oldest(%__MODULE__{items: items, size: size} = queue) do
+    {_, items} = :queue.out(items)
+    %__MODULE__{queue | items: items, size: size - 1}
+  end
+
   defimpl Workex.Aggregate do
     defdelegate add(aggregate, message), to: Workex.Queue
     defdelegate value(aggregate), to: Workex.Queue
     defdelegate size(aggregate), to: Workex.Queue
+    defdelegate remove_oldest(aggregate), to: Workex.Queue
   end
 end
 
@@ -71,5 +87,6 @@ defmodule Workex.Dict do
     defdelegate add(aggregate, message), to: Workex.Dict
     defdelegate value(aggregate), to: Workex.Dict
     defdelegate size(aggregate), to: Workex.Dict
+    def remove_oldest(_), do: raise("not implemented")
   end
 end

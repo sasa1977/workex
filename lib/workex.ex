@@ -41,7 +41,7 @@ defmodule Workex do
     case (Workex.Worker.start_link(self, callback, arg)) do
       {:ok, worker_pid} ->
         %__MODULE__{
-          aggregate: opts[:aggregate] || %Workex.Stack{},
+          aggregate: opts[:aggregate] || %Workex.Queue{},
           worker_pid: worker_pid,
           max_size: opts[:max_size] || :unbound,
           worker_available: true

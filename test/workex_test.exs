@@ -48,7 +48,7 @@ defmodule WorkexTest do
     Workex.push(server, 3)
 
     assert_receive([1])
-    assert_receive([3,2])
+    assert_receive([2, 3])
   end
 
   test "ack" do
@@ -166,7 +166,7 @@ defmodule WorkexTest do
     Workex.push(:foo, 3)
 
     assert_receive([1])
-    assert_receive([3,2])
+    assert_receive([2, 3])
   end
 
 

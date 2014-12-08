@@ -83,8 +83,8 @@ for i <- 1..100 do
 end
 
 [1]                                     # after 100 ms
-[10, 9, 8, 7, 6, 5, 4, 3, 2]            # after 200 ms
-[19, 18, 17, 16, 15, 14, 13, 12, 11]    # after 300 ms
+[2, 3, 4, 5, 6, 7, 8, 9, 10]            # after 200 ms
+[11, 12, 13, 14, 15, 16, 17, 18, 19]    # after 300 ms
 ...
 ```
 
@@ -97,17 +97,15 @@ The worker process is a long running process. Callback functions are invoked in 
 
 ## Message aggregation
 
-As can be seen from the previous example, messages are by default aggregated in the stack. All new messages are placed on top, and the worker receives the reverse list (newer items are first).
+As can be seen from the previous example, messages are by default aggregated in queue. There are two other data aggregation strategies provided:
 
-There are two other data aggregation strategies provided:
-
-- A `Workex.Queue` reverses the data prior to handing it off to the worker. This preserves the ordering of input messages.
 - A `Workex.Dict` assumes that messages are in form of `{key, value}`. New message overwrites the queued one with the same key. The worker receives an unordered list of `{key, value}` tuples.
+- A `Workex.Stack` provides the data in the reversed order. Can be useful when it is useful to consume newer messages first.
 
 To use an alternative aggregation, you can start the server with:
 
 ```elixir
-Workex.start_link(MyModule, arg, aggregate: %Workex.Queue{})
+Workex.start_link(MyModule, arg, aggregate: %Workex.Dict{})
 ```
 
 You can also implement your own aggregation strategies. This amounts to developing a structure that implements the `Workex.Aggregate` protocol.
@@ -122,6 +120,14 @@ Workex.start_link(MyModule, arg, max_size: 10)
 ```
 
 If we have 10 items queued, all subsequent items will not enter the queue. Of course, once all queued items are passed to the worker server, the queue is emptied and `Workex` process will accept new items.
+
+You can also request that the oldest item is replaced with the new one:
+
+```elixir
+Workex.start_link(MyModule, arg, max_size: 10)
+```
+
+Note that this option doesn't make sense with all aggregations. In particular, it will not work with `Workex.Dict`, since this strategy doesn't preserve ordering.
 
 
 ## Synchronous push

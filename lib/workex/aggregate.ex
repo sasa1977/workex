@@ -13,14 +13,14 @@ defprotocol Workex.Aggregate do
 end
 
 defmodule Workex.Stack do
-  defstruct items: [], size: 0
+  defstruct items: :queue.new, size: 0
 
   def add(%__MODULE__{items: items, size: size} = stack, message) do
-    {:ok, %__MODULE__{stack | items: [message | items], size: size + 1}}
+    {:ok, %__MODULE__{stack | items: :queue.in_r(message, items), size: size + 1}}
   end
 
   def value(%__MODULE__{items: items}) do
-    {items, %__MODULE__{}}
+    {:queue.to_list(items), %__MODULE__{}}
   end
 
   def size(%__MODULE__{size: size}), do: size
@@ -34,14 +34,14 @@ end
 
 
 defmodule Workex.Queue do
-  defstruct items: [], size: 0
+  defstruct items: :queue.new, size: 0
 
   def add(%__MODULE__{items: items, size: size} = queue, message) do
-    {:ok, %__MODULE__{queue | items: [message | items], size: size + 1}}
+    {:ok, %__MODULE__{queue | items: :queue.in(message, items), size: size + 1}}
   end
 
   def value(%__MODULE__{items: items}) do
-    {Enum.reverse(items), %__MODULE__{}}
+    {:queue.to_list(items), %__MODULE__{}}
   end
 
   def size(%__MODULE__{size: size}), do: size

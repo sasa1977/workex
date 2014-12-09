@@ -12,9 +12,12 @@ defmodule Workex.Mixfile do
       package: [
         contributors: ["Saša Jurić"],
         licenses: ["MIT"],
-        links: %{"Github": "https://github.com/sasa1977/workex"}
+        links: %{
+          "Github": "https://github.com/sasa1977/workex",
+          "Docs": "http://hexdocs.pm/workex"
+        }
       ],
-      description: "Flow control and backpressure in BEAM processes."
+      description: "A behaviour for simple flow control and backpressure."
     ]
   end
 

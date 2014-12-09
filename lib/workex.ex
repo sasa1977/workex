@@ -1,4 +1,50 @@
 defmodule Workex do
+  @moduledoc """
+    A behaviour which separates message receiving and aggregating from message processing.
+
+    Example:
+
+      defmodule Consumer do
+        use Workex
+
+        # Interface functions are invoked inside client processes
+
+        def start_link do
+          Workex.start_link(__MODULE__, nil)
+        end
+
+        def push(pid, item) do
+          Workex.push(pid, item)
+        end
+
+
+        # Callback functions run in the worker process
+
+        def init(_), do: {:ok, nil}
+
+        def handle(data, state) do
+          Processor.long_op(data)
+          {:ok, state}
+        end
+      end
+
+  The `callback` module must export following functions:
+
+  - init/1 - receives `arg` and should return `{:ok, initial_state}` or `{:stop, reason}`.
+  - handle/2 - receives aggregated messages and the state, and should return `{:ok, new_state}`
+    or `{:stop, reason}`.
+
+  The `Workex` starts two processes. The one returned by `Workex.start_link/4` is the "facade"
+  process which can be used as the target for messages. This is also the process which aggregates
+  messages.
+
+  Callback functions will run in the worker process, which is started by the "main" process.
+  Thus, consuming is done concurrently to message aggregation.
+
+  Both processes are linked, and the main process traps exits. Termination of the worker process
+  will cause the main process to terminate with the same exit reason.
+  """
+
   defstruct [
     :worker_pid,
     :aggregate,
@@ -8,17 +54,16 @@ defmodule Workex do
     pending_responses: HashSet.new,
     processing_responses: HashSet.new
   ]
-  @moduledoc """
-    A gen_server based process which can be used to manipulate multiple workers and send
-    them messages. See readme for detailed description.
-  """
 
   use ExActor.Tolerant
 
   use Behaviour
 
   @typep worker_state :: any
-  @type options :: [{:aggregate, module} | {:max_size, pos_integer} | {:replace_oldest, boolean}]
+  @type workex_options ::
+    [{:aggregate, Workex.Aggregate.t} |
+    {:max_size, pos_integer} |
+    {:replace_oldest, boolean}]
 
   defcallback init(any) :: {:ok, worker_state} | {:stop, reason :: any}
   defcallback handle(Workex.Aggregate.value, worker_state) :: {:ok, worker_state} | {:stop, reason :: any}
@@ -31,10 +76,25 @@ defmodule Workex do
 
   alias Workex.Aggregate
 
-  @spec start(module, arg :: any, options, GenServer.options) :: GenServer.on_start
+  @doc """
+  Starts aggregator and worker processes.
+
+  See `start_link/4` for detailed description.
+  """
+  @spec start(module, arg :: any, workex_options, GenServer.options) :: GenServer.on_start
   defstart start(callback, arg, opts \\ []), gen_server_opts: :runtime
 
-  @spec start_link(module, arg :: any, options, GenServer.options) :: GenServer.on_start
+  @doc """
+  Starts aggregator and worker processes.
+
+  Possible options are:
+
+  - `aggregate` - Aggregation instance. Defaults to `%Workex.Queue{}`. Must implement `Workex.Aggregated`.
+  - `max_size` - Maximum number of messages in the buffer after which new messages are discarded.
+  - `replace_oldest` - Alters behavior of `max_size`. When the buffer is full, new message replaces the
+    oldest one.
+  """
+  @spec start_link(module, arg :: any, workex_options, GenServer.options) :: GenServer.on_start
   defstart start_link(callback, arg, opts \\ []), gen_server_opts: :runtime
 
   definit {callback, arg, opts} do
@@ -53,6 +113,9 @@ defmodule Workex do
     end
   end
 
+  @doc """
+  Pushes a new message, returns immediately.
+  """
   @spec push(GenServer.server, message :: any) :: :ok
   defcast push(message), state: state do
     {_, state} = add_and_notify(state, message)
@@ -60,6 +123,9 @@ defmodule Workex do
   end
 
 
+  @doc """
+  Pushes a new message and returns as soon as the message is queued.
+  """
   @spec push_ack(GenServer.server, any, non_neg_integer | :infinity) :: :ok | {:error, reason :: any}
   def push_ack(server, message, timeout \\ 5000) do
     GenServer.call(server, {:push_ack, message}, timeout)
@@ -71,6 +137,9 @@ defmodule Workex do
   end
 
 
+  @doc """
+  Pushes a new message and returns after the message is processed.
+  """
   @spec push_block(GenServer.server, any, non_neg_integer | :infinity) :: :ok | {:error, reason :: any}
   def push_block(server, message, timeout \\ 5000) do
     GenServer.call(server, {:push_block, message}, timeout)

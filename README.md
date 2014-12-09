@@ -8,6 +8,10 @@ The `Workex` library provides the control over message receiving by splitting th
 - A maximum queue limit must be set after which the consumer should refuse new request.
 - There is a need to eliminate duplicates. An item that arrives in queue makes the previous item of the same kind obsolete.
 - A consumer should rearrange incoming messages by some priority (e.g. newest first).
+<br/>
+Hex package is available [here](https://hex.pm/packages/workex).
+
+A more detailed documentation can be found [here](http://hexdocs.pm/workex/)
 
 
 ## An example
@@ -90,9 +94,11 @@ end
 
 As you can see from the output, the first message is consumed immediately. In the meantime, all subsequent messages are aggregated and handled as soon as the consumer becomes idle. This allowed us to process 20 items in 300 ms, even though the processor function (`Processor.long_op/1`) takes about 100 ms.
 
+## Workex behaviour
+
 `Workex` is a behaviour that runs two generic processes: the `Workex` powered process, and the internal worker process. The `Workex` process is a facade that accepts incoming items. It is tightly coupled with the worker process. As soon as the worker process is done processing, it notifies the `Workex` process, which may in turn provide new data, if there is some. Otherwise, the consumer is considered to be idle until the next message arrives.
 
-The worker process is a long running process. Callback functions are invoked in this process and can manage some state. This works roughly like with `GenServer`. The `init/1` callback returns the initial state, while `handle/2` returns the new state. In case of a crash, both worker, and `Workex` process terminate, and the incoming queue is lost. This is analogous to the behaviour of plain BEAM processes.
+The worker process is a long running process. Callback functions are invoked in this process and can manage some state. This works roughly like with `GenServer`. The `init/1` callback returns the initial state, while `handle/2` returns the new state. In case of a crash, both worker, and `Workex` process terminate, and the incoming queue is lost. This is analogous to the behavior of plain BEAM processes.
 
 
 ## Message aggregation

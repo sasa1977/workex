@@ -8,11 +8,11 @@ The `Workex` library provides the control over message receiving by splitting th
 - A maximum queue limit must be set after which the consumer should refuse new request.
 - There is a need to eliminate duplicates. An item that arrives in queue makes the previous item of the same kind obsolete.
 - A consumer should rearrange incoming messages by some priority (e.g. newest first).
-<br/>
-Hex package is available [here](https://hex.pm/packages/workex).
 
-A more detailed documentation can be found [here](http://hexdocs.pm/workex/)
+## Links
 
+- Hex package is available [here](https://hex.pm/packages/workex).
+- A more detailed documentation can be found [here](http://hexdocs.pm/workex/)
 
 ## An example
 

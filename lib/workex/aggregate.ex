@@ -32,7 +32,7 @@ defprotocol Workex.Aggregate do
 
   Sometimes it doesn't make sense to implement this function, for example when the
   aggregation doesn't guarantee or preserve ordering. In such cases, just raise from
-  the implementation, and document that the function can't be used with the
+  the implementation, and document that the implementation can't be used with the
   `replace_oldest` option.
   """
   @spec remove_oldest(t) :: t

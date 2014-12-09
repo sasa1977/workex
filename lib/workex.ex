@@ -81,7 +81,7 @@ defmodule Workex do
 
   See `start_link/4` for detailed description.
   """
-  @spec start(module, arg :: any, workex_options, GenServer.options) :: GenServer.on_start
+  @spec start(module, any, workex_options, GenServer.options) :: GenServer.on_start
   defstart start(callback, arg, opts \\ []), gen_server_opts: :runtime
 
   @doc """
@@ -94,7 +94,7 @@ defmodule Workex do
   - `replace_oldest` - Alters behavior of `max_size`. When the buffer is full, new message replaces the
     oldest one.
   """
-  @spec start_link(module, arg :: any, workex_options, GenServer.options) :: GenServer.on_start
+  @spec start_link(module, any, workex_options, GenServer.options) :: GenServer.on_start
   defstart start_link(callback, arg, opts \\ []), gen_server_opts: :runtime
 
   definit {callback, arg, opts} do
@@ -116,7 +116,7 @@ defmodule Workex do
   @doc """
   Pushes a new message, returns immediately.
   """
-  @spec push(GenServer.server, message :: any) :: :ok
+  @spec push(GenServer.server, any) :: :ok
   defcast push(message), state: state do
     {_, state} = add_and_notify(state, message)
     new_state(state)
@@ -124,7 +124,7 @@ defmodule Workex do
 
 
   @doc """
-  Pushes a new message and returns as soon as the message is queued.
+  Pushes a new message and returns as soon as the message is queued (or rejected).
   """
   @spec push_ack(GenServer.server, any, non_neg_integer | :infinity) :: :ok | {:error, reason :: any}
   def push_ack(server, message, timeout \\ 5000) do
@@ -138,7 +138,7 @@ defmodule Workex do
 
 
   @doc """
-  Pushes a new message and returns after the message is processed.
+  Pushes a new message and returns after the message is processed (or rejected).
   """
   @spec push_block(GenServer.server, any, non_neg_integer | :infinity) :: :ok | {:error, reason :: any}
   def push_block(server, message, timeout \\ 5000) do

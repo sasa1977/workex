@@ -127,11 +127,7 @@ defmodule Workex do
   Pushes a new message and returns as soon as the message is queued (or rejected).
   """
   @spec push_ack(GenServer.server, any, non_neg_integer | :infinity) :: :ok | {:error, reason :: any}
-  def push_ack(server, message, timeout \\ 5000) do
-    GenServer.call(server, {:push_ack, message}, timeout)
-  end
-
-  defhandlecall push_ack(message), state: state do
+  defcall push_ack(message), timeout: timeout \\ 5000, state: state do
     {response, state} = add_and_notify(state, message)
     set_and_reply(state, response)
   end
@@ -141,11 +137,7 @@ defmodule Workex do
   Pushes a new message and returns after the message is processed (or rejected).
   """
   @spec push_block(GenServer.server, any, non_neg_integer | :infinity) :: :ok | {:error, reason :: any}
-  def push_block(server, message, timeout \\ 5000) do
-    GenServer.call(server, {:push_block, message}, timeout)
-  end
-
-  defhandlecall push_block(message), state: state, from: from do
+  defcall push_block(message), timeout: timeout \\ 5000, state: state, from: from do
     {response, state} = add_and_notify(state, message, from)
     case response do
       :ok -> new_state(state)

@@ -33,6 +33,7 @@ defmodule Workex do
   - init/1 - receives `arg` and should return `{:ok, initial_state}` or `{:stop, reason}`.
   - handle/2 - receives aggregated messages and the state, and should return `{:ok, new_state}`
     or `{:stop, reason}`.
+  - handle_message/2 - optional message handler
 
   The `Workex` starts two processes. The one returned by `Workex.start_link/4` is the "facade"
   process which can be used as the target for messages. This is also the process which aggregates
@@ -64,13 +65,22 @@ defmodule Workex do
     [{:aggregate, Workex.Aggregate.t} |
     {:max_size, pos_integer} |
     {:replace_oldest, boolean}]
+  @typep handle_response ::
+  {:ok, worker_state} |
+  {:ok, worker_state, pos_integer | :hibernate} |
+  {:stop, reason :: any} |
+  {:stop, reason :: any, worker_state}
 
   defcallback init(any) :: {:ok, worker_state} | {:stop, reason :: any}
-  defcallback handle(Workex.Aggregate.value, worker_state) :: {:ok, worker_state} | {:stop, reason :: any}
+  defcallback handle(Workex.Aggregate.value, worker_state) :: handle_response
+  defcallback handle_message(any, worker_state) :: handle_response
 
   defmacro __using__(_) do
     quote do
       @behaviour unquote(__MODULE__)
+
+      def handle_message(_, state), do: {:ok, state}
+      defoverridable handle_message: 2
     end
   end
 

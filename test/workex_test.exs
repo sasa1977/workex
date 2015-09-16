@@ -34,10 +34,17 @@ defmodule WorkexTest do
       handle([message], pid)
     end
 
+    def handle([:timeout], pid) do
+      {:ok, pid, 1}
+    end
+
     def handle(messages, pid) do
       send(pid, messages)
       {:ok, pid}
     end
+
+    def handle_message(:timeout, state), do: {:stop, :timeout, state}
+    def handle_message(_, state), do: {:ok, state}
   end
 
   test "default" do
@@ -244,6 +251,17 @@ defmodule WorkexTest do
       {:ok, server} = Workex.start_link(EchoWorker, self)
       Workex.push(server, {:raise, "an error"})
       assert_receive({:EXIT, ^server, {"an error", _}})
+    after
+      Process.flag(:trap_exit, false)
+    end
+  end
+
+  test "timeout worker" do
+    Process.flag(:trap_exit, true)
+    try do
+      {:ok, server} = Workex.start_link(EchoWorker, self)
+      Workex.push(server, :timeout)
+      assert_receive({:EXIT, ^server, :timeout})
     after
       Process.flag(:trap_exit, false)
     end

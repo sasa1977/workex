@@ -9,7 +9,6 @@ defmodule Workex.Worker do
 
   definit {queue_pid, callback, arg} do
     case callback.init(arg) do
-      {:stop, reason} -> {:stop, reason}
       {:ok, state} ->
         %__MODULE__{
           queue_pid: queue_pid,
@@ -17,17 +16,41 @@ defmodule Workex.Worker do
           state: state
         }
         |> initial_state
+      other -> other
     end
   end
 
 
   defcast process(messages),
-    state: %__MODULE__{queue_pid: queue_pid, callback: callback, state: state} = worker
+    state: %__MODULE__{callback: callback, state: state} = worker_state
   do
-    case callback.handle(messages, state) do
+    callback.handle(messages, state)
+    |> handle_response(worker_state)
+  end
+
+  defhandleinfo message,
+    state: %__MODULE__{callback: callback, state: state} = worker_state
+  do
+    callback.handle_message(message, state)
+    |> handle_response(worker_state)
+  end
+
+  defp handle_response(
+    response,
+    %__MODULE__{queue_pid: queue_pid, state: state} = worker_state
+  ) do
+    case response do
       {:ok, new_state} ->
         send(queue_pid, {:workex, :worker_available})
-        new_state(%__MODULE__{worker | state: new_state})
+        new_state(%__MODULE__{worker_state | state: new_state})
+
+      {:ok, new_state, timeout_or_hibernate} ->
+        send(queue_pid, {:workex, :worker_available})
+        new_state(%__MODULE__{worker_state | state: new_state}, timeout_or_hibernate)
+
+      {:stop, reason, new_state} ->
+        {:stop, reason, %__MODULE__{worker_state | state: new_state}}
+
       {:stop, reason} -> {:stop, reason, state}
     end
   end

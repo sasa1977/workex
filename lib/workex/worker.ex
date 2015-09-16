@@ -16,6 +16,15 @@ defmodule Workex.Worker do
           state: state
         }
         |> initial_state
+
+      {:ok, state, timeout} ->
+        %__MODULE__{
+          queue_pid: queue_pid,
+          callback: callback,
+          state: state
+        }
+        |> initial_state(timeout)
+
       other -> other
     end
   end

@@ -71,7 +71,7 @@ defmodule Workex do
   {:stop, reason :: any} |
   {:stop, reason :: any, worker_state}
 
-  defcallback init(any) :: {:ok, worker_state} | {:stop, reason :: any}
+  defcallback init(any) :: {:ok, worker_state} | {:ok, worker_state, pos_integer | :hibernate} | {:stop, reason :: any}
   defcallback handle(Workex.Aggregate.value, worker_state) :: handle_response
   defcallback handle_message(any, worker_state) :: handle_response
 

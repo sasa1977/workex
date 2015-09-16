@@ -19,6 +19,7 @@ defmodule WorkexTest do
     use Workex
 
     def init({:stop, reason}), do: {:stop, reason}
+    def init(:timeout), do: {:ok, :foo, 1}
     def init(pid), do: {:ok, pid}
 
     def handle([{:stop, reason}], _) do
@@ -256,9 +257,21 @@ defmodule WorkexTest do
     end
   end
 
-  test "timeout worker" do
+  test "timeout worker init" do
     Process.flag(:trap_exit, true)
     try do
+      Logger.remove_backend(:console)
+      {:ok, server} = Workex.start_link(EchoWorker, :timeout)
+      assert_receive({:EXIT, ^server, :timeout})
+    after
+      Process.flag(:trap_exit, false)
+    end
+  end
+
+  test "timeout worker handle" do
+    Process.flag(:trap_exit, true)
+    try do
+      Logger.remove_backend(:console)
       {:ok, server} = Workex.start_link(EchoWorker, self)
       Workex.push(server, :timeout)
       assert_receive({:EXIT, ^server, :timeout})

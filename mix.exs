@@ -13,7 +13,7 @@ defmodule Workex.Mixfile do
       deps: deps,
       source_url: "https://github.com/sasa1977/workex",
       package: [
-        contributors: ["Saša Jurić"],
+        maintainers: ["Saša Jurić"],
         licenses: ["MIT"],
         links: %{
           "Github": "https://github.com/sasa1977/workex",

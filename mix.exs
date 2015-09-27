@@ -3,10 +3,12 @@ Code.ensure_loaded?(Hex) and Hex.start
 defmodule Workex.Mixfile do
   use Mix.Project
 
+  @version "0.9.0-dev"
+
   def project do
     [
       app: :workex,
-      version: "0.9.0-dev",
+      version: @version,
       elixir: "~> 1.0",
       deps: deps,
       source_url: "https://github.com/sasa1977/workex",
@@ -18,7 +20,13 @@ defmodule Workex.Mixfile do
           "Docs": "http://hexdocs.pm/workex"
         }
       ],
-      description: "A behaviour for simple flow control and backpressure."
+      description: "A behaviour for simple flow control and backpressure.",
+      docs: [
+        extras: ["README.md"],
+        main: "Workex",
+        source_url: "https://github.com/sasa1977/workex/",
+        source_ref: @version
+      ]
     ]
   end
 
@@ -29,7 +37,7 @@ defmodule Workex.Mixfile do
   defp deps do
     [
       {:exactor, "~> 2.2.0"},
-      {:ex_doc, "~> 0.6.0", only: :docs}
+      {:ex_doc, "~> 0.10.0", only: :docs}
     ]
   end
 end

@@ -12,6 +12,8 @@ defmodule Workex.Mixfile do
       elixir: "~> 1.0",
       deps: deps,
       consolidate_protocols: Mix.env != :test,
+      build_embedded: Mix.env == :prod,
+      start_permanent: Mix.env == :prod,
       source_url: "https://github.com/sasa1977/workex",
       package: [
         maintainers: ["Saša Jurić"],

@@ -11,6 +11,7 @@ defmodule Workex.Mixfile do
       version: @version,
       elixir: "~> 1.0",
       deps: deps,
+      consolidate_protocols: Mix.env != :test,
       source_url: "https://github.com/sasa1977/workex",
       package: [
         maintainers: ["Saša Jurić"],

@@ -10,8 +10,8 @@ defmodule Workex.Mixfile do
       app: :workex,
       version: @version,
       elixir: "~> 1.0",
+      elixirc_paths: elixirc_paths(Mix.env),
       deps: deps,
-      consolidate_protocols: Mix.env != :test,
       build_embedded: Mix.env == :prod,
       start_permanent: Mix.env == :prod,
       source_url: "https://github.com/sasa1977/workex",
@@ -43,4 +43,8 @@ defmodule Workex.Mixfile do
       {:ex_doc, "~> 0.10.0", only: :docs}
     ]
   end
+
+  defp elixirc_paths(:test), do: ["test/support" | elixirc_paths(:common)]
+  defp elixirc_paths(:common), do: ["lib"]
+  defp elixirc_paths(_), do: elixirc_paths(:common)
 end

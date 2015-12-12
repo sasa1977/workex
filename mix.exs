@@ -34,7 +34,7 @@ defmodule Workex.Mixfile do
   end
 
   def application do
-    [applications: [:exactor, :logger]]
+    [applications: [:logger]]
   end
 
   defp deps do

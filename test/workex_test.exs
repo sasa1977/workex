@@ -3,7 +3,8 @@ defmodule WorkexTest do
 
   setup do
     flush_messages
-    :random.seed(:erlang.now)
+    << a :: 32, b :: 32, c :: 32 >> = :crypto.rand_bytes(12)
+    :random.seed({a, b, c})
     :ok
   end
 

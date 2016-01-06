@@ -3,7 +3,6 @@ defprotocol Workex.Aggregate do
   Specifies the protocol used by `Workex` behaviour to aggregate incoming messages.
   """
 
-  @doc "Value that contains aggregated messages which are passed to the worker process."
   @type value :: any
 
   @doc "Adds the new item to the aggregate."

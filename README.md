@@ -41,7 +41,7 @@ Here's how we can do this with `Workex`. First, make sure you have `Workex` set 
 
 ```elixir
 def deps do
-  [{:workex, "~> 0.9.0"}, ...]
+  [{:workex, "~> 0.10.0"}, ...]
 end
 
 def application do

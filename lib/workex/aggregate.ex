@@ -115,20 +115,20 @@ defmodule Workex.Dict do
   existing one of the same key. The aggregated value is a list of key-value tuples.
   Ordering is not preserved.
   """
-  defstruct items: HashDict.new
+  defstruct items: Map.new
 
   @doc false
   def add(%__MODULE__{items: items} = dict, {key, value}) do
-    {:ok, %__MODULE__{dict | items: HashDict.put(items, key, value)}}
+    {:ok, %__MODULE__{dict | items: Map.put(items, key, value)}}
   end
 
   @doc false
   def value(%__MODULE__{items: items}) do
-    {HashDict.to_list(items), %__MODULE__{}}
+    {Map.to_list(items), %__MODULE__{}}
   end
 
   @doc false
-  def size(%__MODULE__{items: items}), do: HashDict.size(items)
+  def size(%__MODULE__{items: items}), do: Map.size(items)
 
   defimpl Workex.Aggregate do
     defdelegate add(aggregate, message), to: Workex.Dict

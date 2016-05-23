@@ -52,8 +52,8 @@ defmodule Workex do
     :worker_available,
     :max_size,
     :replace_oldest,
-    pending_responses: HashSet.new,
-    processing_responses: HashSet.new
+    pending_responses: MapSet.new,
+    processing_responses: MapSet.new
   ]
 
   use ExActor.Tolerant
@@ -196,7 +196,7 @@ defmodule Workex do
 
   defp add_pending_response(state, nil), do: state
   defp add_pending_response(%__MODULE__{pending_responses: pending_responses} = state, from) do
-    %__MODULE__{state | pending_responses: HashSet.put(pending_responses, from)}
+    %__MODULE__{state | pending_responses: MapSet.put(pending_responses, from)}
   end
 
 
@@ -215,7 +215,7 @@ defmodule Workex do
         worker_available: false,
         aggregate: aggregate,
         processing_responses: pending_responses,
-        pending_responses: HashSet.new
+        pending_responses: MapSet.new
       }
     else
       state
@@ -234,7 +234,7 @@ defmodule Workex do
 
   defp notify_pending(%__MODULE__{processing_responses: processing_responses} = state) do
     Enum.each(processing_responses, &GenServer.reply(&1, :ok))
-    %__MODULE__{state | processing_responses: HashSet.new}
+    %__MODULE__{state | processing_responses: MapSet.new}
   end
 
 

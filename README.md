@@ -1,5 +1,9 @@
 # Workex
 
+[![Build status](https://travis-ci.org/sasa1977/workex.svg "Build status")](https://travis-ci.org/sasa1977/workex)
+[![Hex version](https://img.shields.io/hexpm/v/workex.svg "Hex version")](https://hex.pm/packages/workex)
+![Hex downloads](https://img.shields.io/hexpm/dt/workex.svg "Hex downloads")
+
 By default, consumer processes in Erlang/Elixir don't have much control over received messages. This is especially true for `GenServer` based processes, where messages are processed one by one.
 
 The `Workex` library provides the control over message receiving by splitting the consumer in two processes: one which accepts messages, and another process which handles them. This approach can be useful in various scenarios:
